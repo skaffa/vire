@@ -28,11 +28,23 @@ See [PLAN.md](PLAN.md).
 | `R` | Reset the circuit to your design |
 | `N` / `M` | Mark the block you look at as delay input / output (again = unmark) |
 | `J` | Flow arrows on / off |
+| `B` | Materials panel on / off (when a ghost is shown) |
 
 In Vire Mode, components within 24 blocks show their signal level (dust power, repeater, comparator
 and observer output; `S`/`W` = strongly/weakly powered block). With an input and an output marked,
 the bar shows the delay (`Δ 12 gt (6 rt, 0.60 s)`), and for a repeating signal the period,
 frequency and on time.
+
+When you leave Vire Mode with changes, a dialog asks for a name: **Keep as ghost** shows the design
+in the real world as see-through blocks to build from, **Save only** stores it, **Discard** drops it
+(Escape keeps it as `_autosave`; a forced exit such as damage also autosaves). Designs are stored in
+`config/vire/designs/<name>.json`. While you build, finished blocks disappear, a block in the way gets
+a red box, the right block in the wrong state a yellow box with what is expected (`delay: 2
+expected`). The panel on the left lists the materials still needed against your inventory
+(inventory only, no chests). When every block matches, a toast says the design is complete.
+
+Commands: `/vire ghost <name>` / `/vire ghost off`, `/vire designs`, `/vire bom`, `/vire size <16..64>`,
+`/vire status`.
 
 Commands: `/vire`, `/vire size <16..64>`, `/vire status`, `/vire spike` (sandbox self-check).
 
@@ -49,7 +61,7 @@ Vire does not hide itself.
 `./gradlew runClient -Pselftest=quit --args="--username VireTester --quickPlayMultiplayer 127.0.0.1:25565"`
 runs the scripted acceptance test against the local test server (`./gradlew runServer`,
 `VireTester` must be op). Other modes: `-Pselftest=kit` (sandbox vs real server, tick by tick),
-`-Pselftest=probe` (delay tracker and frequency meter), `-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
+`-Pselftest=probe` (delay tracker and frequency meter), `-Pselftest=ghost` (design → ghost → build it in survival), `-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
 packet sent while Vire Mode is on.
 
 ## Files

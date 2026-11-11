@@ -1,5 +1,10 @@
 package dev.vire.client.mode;
 
+import dev.vire.client.design.Designs;
+import dev.vire.client.design.ExitScreen;
+import dev.vire.core.design.Design;
+import dev.vire.core.design.DesignStore;
+
 import dev.vire.client.VireClient;
 import dev.vire.client.camera.FreeCamera;
 import dev.vire.client.interact.VireWorld;
@@ -188,17 +193,43 @@ public final class VireMode {
 		if (mc.player != null && mc.getCameraEntity() == s.camera) {
 			mc.setCameraEntity(mc.player);
 		}
+		// the design, taken before restore (PLAN.md §7); null when the edits change nothing
+		Design design = null;
+		try {
+			design = Designs.capture(mc, s, Designs.defaultName());
+		} catch (RuntimeException e) {
+			VireClient.LOG.warn("[Vire] Could not capture the design", e);
+		}
 		int restored = 0;
 		if (restore && mc.level == s.level) {
 			restored = VireWorld.restore(mc, s);
 		}
-		int edits = s.history.undoSize();
-		String msg = "Vire Mode off (" + reason + "). " + edits + " edit" + (edits == 1 ? "" : "s") + " discarded, "
+		boolean byUser = reason.equals("left");
+		String what;
+		if (design == null) {
+			what = "No design changes";
+		} else if (byUser && mc.player != null) {
+			what = "Design of " + design.entries().size() + " blocks";
+		} else {
+			Design saved = Designs.save(design, DesignStore.AUTOSAVE);
+			what = saved == null ? "Design could not be saved (see log)"
+					: "Design of " + design.entries().size() + " blocks saved as " + DesignStore.AUTOSAVE + " (/vire ghost " + DesignStore.AUTOSAVE + ")";
+		}
+		String msg = "Vire Mode off (" + reason + "). " + what + ", "
 				+ restored + " block" + (restored == 1 ? "" : "s") + " restored"
 				+ (PacketGuard.dropped() > 0 ? ", " + PacketGuard.dropped() + " packets blocked (see log)" : "") + ".";
 		VireClient.LOG.info("[Vire] {} sent={} dropped={}", msg, PacketGuard.sent(), PacketGuard.droppedByType());
 		say(mc, msg, PacketGuard.dropped() > 0 ? ChatFormatting.RED : ChatFormatting.AQUA);
+		lastDesign = design;
+		if (design != null && byUser && mc.player != null && openExitScreen) {
+			mc.gui.setScreen(new ExitScreen(design));
+		}
 	}
+
+	/** The design captured by the last exit (dev tools and tests). */
+	public static Design lastDesign;
+	/** The self-test turns the dialog off and applies a choice itself. */
+	public static boolean openExitScreen = true;
 
 	/** End of every client tick. */
 	public static void tick(Minecraft mc) {

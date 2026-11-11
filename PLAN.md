@@ -576,6 +576,24 @@ Each milestone ends with a build that runs.
 - *Done when*: build a design from the ghost in survival on the test server; every ghost block
   clears; BOM counts match by hand.
 
+- **M4 done 2026-11-11.** Core: `StateRef` (state text), `Normalizer` (simulation and
+  neighbor-shape properties ignored; wire/fence/pane/wall sides, stairs/rail shape, chest type),
+  `Design` + normalized diff, `Bom` (second halves, double slabs, candles/pickles/eggs/layers,
+  buckets), `DesignStore` (`config/vire/designs/`); unit tested. Client: the design is taken from the
+  edit history before restore; `ExitScreen` (Keep as ghost / Save only / Discard; Escape and forced
+  exits save `_autosave`); `GhostLayer` compares each position with the real block every tick
+  (done / missing = see-through model, copied from Ghost Mason / in the way = red / wrong state =
+  yellow + "facing: west expected"), designs show only in the world (server + dimension) they were
+  made in, the active ghost is remembered in the config; `BomHud` (`B`); toast "Design complete"
+  clears the ghost; commands `/vire ghost`, `/vire designs`, `/vire bom`.
+  Self-test `-Pselftest=ghost` PASS (28 checks) on the survival test server: design 6 positions
+  (wire, wire, repeater delay 2, lamp, stone, remove a real dirt block) → exit dialog → `_autosave` on
+  Escape → keep as ghost → BOM = 2 redstone, 1 repeater, 1 lamp, 1 stone (hand count) and sees the
+  `/give`n items → a wrong-way repeater shows yellow "facing: west expected" → broken by hand,
+  placed by hand (delay 1 → "delay: 2 expected" → right click) → wire, stone, dirt broken, lamp →
+  "Design complete", ghost and config cleared, file kept. The design list screen (§12 VireScreen)
+  is not built yet; `/vire designs` lists them in chat.
+
 **M5 — Litematica**
 - `.litematic` writer + golden tests, export button + command, auto-load hook.
 - *Done when*: the exported file loads in Litematica 0.29.1 with correct rotations, and

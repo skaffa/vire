@@ -8,7 +8,17 @@ import dev.vire.client.interact.VirtualHotbar;
 import dev.vire.client.mode.PacketGuard;
 import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
+import dev.vire.client.design.BomHud;
+import dev.vire.client.design.Designs;
+import dev.vire.client.design.GhostBlockRenderer;
+import dev.vire.client.design.GhostLayer;
 import dev.vire.client.overlay.Probe;
+import dev.vire.core.design.Design;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.SharedSuggestionProvider;
+import java.util.List;
+import java.util.Map;
 import dev.vire.client.overlay.RegionOverlay;
 import dev.vire.client.overlay.SignalOverlay;
 import dev.vire.client.overlay.VireHud;
@@ -56,6 +66,7 @@ public final class VireClient implements ClientModInitializer {
 	private static KeyMapping markInKey;
 	private static KeyMapping markOutKey;
 	private static KeyMapping arrowsKey;
+	private static KeyMapping bomKey;
 	/** Tick rates the speed keys step through (PLAN.md §5.7). */
 	private static final float[] RATES = {1, 2, 5, 10, 20, 40, 60, 100};
 
@@ -82,12 +93,15 @@ public final class VireClient implements ClientModInitializer {
 		markInKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.mark_in", InputConstants.KEY_N, category));
 		markOutKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.mark_out", InputConstants.KEY_M, category));
 		arrowsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.arrows", InputConstants.KEY_J, category));
+		bomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.bom", InputConstants.KEY_B, category));
+		GhostBlockRenderer.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(VireClient::tick);
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
 			if (config.keepWarm) {
 				Sandbox.ensureStarted(); // boots in the background, so V is instant later
 			}
+			mc.execute(GhostLayer::restoreActive);
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> mc.execute(() -> {
 			VireMode.exit(mc, "disconnected", false);
@@ -96,6 +110,7 @@ public final class VireClient implements ClientModInitializer {
 		ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> Sandbox.stop());
 
 		HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, Identifier.fromNamespaceAndPath(MOD_ID, "frame"), VireHud::frame);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, Identifier.fromNamespaceAndPath(MOD_ID, "bom"), BomHud::render);
 		HudElementRegistry.replaceElement(VanillaHudElements.HOTBAR, vanilla -> (g, delta) -> {
 			if (VireMode.active()) {
 				VireHud.hotbar(g);
@@ -119,6 +134,46 @@ public final class VireClient implements ClientModInitializer {
 											+ " (used next time you enter)"));
 									return 1;
 								})))
+						.then(ClientCommands.literal("ghost")
+								.then(ClientCommands.literal("off").executes(ctx -> {
+									Minecraft.getInstance().execute(() -> GhostLayer.show(null));
+									ctx.getSource().sendFeedback(Component.literal("[Vire] Ghost hidden"));
+									return 1;
+								}))
+								.then(ClientCommands.argument("name", StringArgumentType.word())
+										.suggests((ctx, b) -> SharedSuggestionProvider.suggest(Designs.names(), b))
+										.executes(ctx -> {
+											String name = StringArgumentType.getString(ctx, "name");
+											Design d = Designs.load(name);
+											if (d == null) {
+												ctx.getSource().sendError(Component.literal("[Vire] No design " + name + " (see /vire designs)"));
+												return 0;
+											}
+											Minecraft.getInstance().execute(() -> GhostLayer.show(d));
+											String here = Designs.worldId(Minecraft.getInstance());
+											ctx.getSource().sendFeedback(Component.literal("[Vire] Ghost " + d.name() + ": " + d.entries().size() + " blocks"
+													+ (d.world().equals(here) ? "" : " (made in " + d.world() + "; shows only there)")));
+											return 1;
+										})))
+						.then(ClientCommands.literal("designs").executes(ctx -> {
+							List<String> names = Designs.names();
+							ctx.getSource().sendFeedback(Component.literal(names.isEmpty() ? "[Vire] No saved designs"
+									: "[Vire] Designs: " + String.join(", ", names)));
+							return 1;
+						}))
+						.then(ClientCommands.literal("bom").executes(ctx -> {
+							if (GhostLayer.design() == null) {
+								ctx.getSource().sendError(Component.literal("[Vire] No ghost shown (/vire ghost <name>)"));
+								return 0;
+							}
+							ctx.getSource().sendFeedback(Component.literal("[Vire] Materials for " + GhostLayer.design().name() + " (needed / in inventory):"));
+							for (Map.Entry<String, int[]> e : GhostLayer.bom().entrySet()) {
+								int[] v = e.getValue();
+								ctx.getSource().sendFeedback(Component.literal("  " + v[0] + " x " + e.getKey().replace("minecraft:", "") + " (" + v[1] + ")")
+										.withStyle(v[1] >= v[0] ? ChatFormatting.GREEN : ChatFormatting.RED));
+							}
+							return 1;
+						}))
 						.then(ClientCommands.literal("status").executes(ctx -> {
 							ctx.getSource().sendFeedback(Component.literal(status()));
 							return 1;
@@ -193,7 +248,14 @@ public final class VireClient implements ClientModInitializer {
 				VireMode.hint(mc, "Flow arrows " + (config.showArrows ? "on" : "off"));
 			}
 		}
+		while (bomKey.consumeClick()) {
+			if (GhostLayer.design() != null && !VireMode.active()) {
+				config.showBom = !config.showBom;
+				save();
+			}
+		}
 		VireMode.tick(mc);
+		GhostLayer.tick(mc);
 		RegionOverlay.tick();
 		SignalOverlay.tick();
 		SelfTest.tick(mc);
@@ -243,6 +305,10 @@ public final class VireClient implements ClientModInitializer {
 
 	public static KeyMapping markOutKey() {
 		return markOutKey;
+	}
+
+	public static KeyMapping bomKey() {
+		return bomKey;
 	}
 
 	public static KeyMapping arrowsKey() {

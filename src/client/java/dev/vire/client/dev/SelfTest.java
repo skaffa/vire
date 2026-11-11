@@ -97,6 +97,12 @@ public final class SelfTest {
 			probeSteps();
 			return;
 		}
+		if (MODE.equals("ghost")) {
+			GhostTest.steps();
+			return;
+		}
+		// the other scripts leave Vire Mode with edits and go on at once; the exit dialog would block them
+		VireMode.openExitScreen = false;
 		if (MODE.equals("spike")) {
 			// M2 spike only: run it once in the world, wait for it, then quit
 			step(0, "spike", dev.vire.client.sandbox.SandboxSpike::start);
@@ -633,7 +639,7 @@ public final class SelfTest {
 		return is(c.marker(), markerGold ? Blocks.GOLD_BLOCK : Blocks.IRON_BLOCK);
 	}
 
-	private static void report(Minecraft mc) {
+	static void report(Minecraft mc) {
 		if (FAILURES.isEmpty()) {
 			VireClient.LOG.info("[selftest] VIRE SELFTEST PASS ({} steps)", STEPS.size());
 		} else {
@@ -661,12 +667,12 @@ public final class SelfTest {
 		waitFor("stepped", () -> VireMode.session().sandboxTick == tickMark + 1, 100);
 	}
 
-	private static boolean is(BlockPos pos, net.minecraft.world.level.block.Block block) {
+	static boolean is(BlockPos pos, net.minecraft.world.level.block.Block block) {
 		return Minecraft.getInstance().level.getBlockState(pos).is(block);
 	}
 
 	/** A step that repeats every tick until {@code done} holds; fails after {@code maxTicks}. */
-	private static void waitFor(String name, java.util.function.BooleanSupplier done, int maxTicks) {
+	static void waitFor(String name, java.util.function.BooleanSupplier done, int maxTicks) {
 		step(1, name, mc -> {
 			if (done.getAsBoolean()) {
 				waited = 0;
@@ -711,15 +717,15 @@ public final class SelfTest {
 		return wrong;
 	}
 
-	private static void step(int delay, String name, Consumer<Minecraft> action) {
+	static void step(int delay, String name, Consumer<Minecraft> action) {
 		STEPS.add(new Step(delay, name, action));
 	}
 
-	private static void click(KeyMapping key) {
+	static void click(KeyMapping key) {
 		KeyMapping.click(KeyMappingHelper.getBoundKeyOf(key));
 	}
 
-	private static void set(KeyMapping key, boolean down) {
+	static void set(KeyMapping key, boolean down) {
 		InputConstants.Key k = KeyMappingHelper.getBoundKeyOf(key);
 		KeyMapping.set(k, down);
 	}
@@ -729,7 +735,7 @@ public final class SelfTest {
 		s.camera.snapTo(target.getX() + 0.5, target.getY() + 3.2, target.getZ() + 0.5, 0, 90);
 	}
 
-	private static void check(boolean ok, String what) {
+	static void check(boolean ok, String what) {
 		if (ok) {
 			VireClient.LOG.info("[selftest] ok: {}", what);
 		} else {
