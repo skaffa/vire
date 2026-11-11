@@ -7,6 +7,9 @@
 	"key.vire.slower": "Slower (tick rate)",
 	"key.vire.faster": "Faster (tick rate)",
 	"key.vire.reset": "Reset circuit",
+	"key.vire.mark_in": "Mark delay input",
+	"key.vire.mark_out": "Mark delay output",
+	"key.vire.arrows": "Flow arrows on/off",
 	"vire.message.loaded": "Vire %s loaded. Config: %s",
 	"vire.message.not_ready": "Vire Mode is not built yet (milestone M1)."
 }

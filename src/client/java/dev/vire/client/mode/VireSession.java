@@ -45,6 +45,14 @@ public final class VireSession {
 	public boolean frozen = true;
 	public float tickRate = 20;
 	public long sandboxTick;
+	/** Comparator outputs in the sandbox (key → 0..15); the client's own comparator block entities do not know them. */
+	public Map<Long, Integer> comparators = Map.of();
+	/** Delay tracker marks (keys) or null, and the meter fed after every mirror batch (PLAN.md §8). */
+	public Long markIn;
+	public Long markOut;
+	public final dev.vire.core.probe.DelayMeter meter = new dev.vire.core.probe.DelayMeter();
+	/** Load the meter last saw; a new load restarts the circuit, so the meter starts over. */
+	public int meterGeneration = -1;
 
 	VireSession(ClientLevel level, LocalPlayer player, Box box, FreeCamera camera, ClientInput savedInput) {
 		this.level = level;

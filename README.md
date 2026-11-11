@@ -26,6 +26,13 @@ See [PLAN.md](PLAN.md).
 | `.` / `,` | Step 1 / 10 game ticks |
 | `[` / `]` | Slower / faster (1–100 TPS) |
 | `R` | Reset the circuit to your design |
+| `N` / `M` | Mark the block you look at as delay input / output (again = unmark) |
+| `J` | Flow arrows on / off |
+
+In Vire Mode, components within 24 blocks show their signal level (dust power, repeater, comparator
+and observer output; `S`/`W` = strongly/weakly powered block). With an input and an output marked,
+the bar shows the delay (`Δ 12 gt (6 rt, 0.60 s)`), and for a repeating signal the period,
+frequency and on time.
 
 Commands: `/vire`, `/vire size <16..64>`, `/vire status`, `/vire spike` (sandbox self-check).
 
@@ -42,7 +49,7 @@ Vire does not hide itself.
 `./gradlew runClient -Pselftest=quit --args="--username VireTester --quickPlayMultiplayer 127.0.0.1:25565"`
 runs the scripted acceptance test against the local test server (`./gradlew runServer`,
 `VireTester` must be op). Other modes: `-Pselftest=kit` (sandbox vs real server, tick by tick),
-`-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
+`-Pselftest=probe` (delay tracker and frequency meter), `-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
 packet sent while Vire Mode is on.
 
 ## Files

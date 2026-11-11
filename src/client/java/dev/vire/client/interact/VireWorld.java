@@ -120,6 +120,10 @@ public final class VireWorld {
 						s.level.setBlock(p, states[i], MIRROR);
 					}
 				}
+				if (b.comparators() != null) {
+					s.comparators = b.comparators();
+				}
+				dev.vire.client.overlay.Probe.afterBatch(s, b.generation(), b.tick());
 			} catch (RuntimeException e) {
 				VireClient.LOG.warn("[Vire] Mirror batch failed", e);
 			} finally {

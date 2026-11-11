@@ -22,7 +22,11 @@ import net.minecraft.world.phys.AABB;
 
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 
+import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +53,8 @@ public final class SandboxWorld {
 	private static Box loaded;
 	private static final LongLinkedOpenHashSet CHANGED = new LongLinkedOpenHashSet();
 	private static final List<BlockEventData> EVENTS = new ArrayList<>();
+	/** Comparator outputs sent last; null forces a full send (new load). */
+	private static Map<Long, Integer> lastComparators;
 
 	private SandboxWorld() {
 	}
@@ -82,7 +88,13 @@ public final class SandboxWorld {
 		}
 		boolean entitiesMatter = !entities.isEmpty() || hadEntities;
 		hadEntities = !entities.isEmpty();
-		if (CHANGED.isEmpty() && EVENTS.isEmpty() && !entitiesMatter && server.getTickCount() % 4 != 0) {
+		Map<Long, Integer> comparators = comparators(level);
+		if (comparators.equals(lastComparators)) {
+			comparators = null;
+		} else {
+			lastComparators = comparators;
+		}
+		if (CHANGED.isEmpty() && EVENTS.isEmpty() && !entitiesMatter && comparators == null && server.getTickCount() % 4 != 0) {
 			return; // nothing new; still send the clock status every 4 ticks
 		}
 		long[] keys = CHANGED.toLongArray();
@@ -94,9 +106,30 @@ public final class SandboxWorld {
 		Box l = loaded;
 		boolean ready = l != null && allTicking(level, l.minX() >> 4, l.minZ() >> 4, l.maxX() >> 4, l.maxZ() >> 4);
 		Sandbox.OUT.add(new MirrorBatch(generation, List.copyOf(EVENTS), keys, states, entities, ready, rate.isFrozen(), rate.tickrate(),
-				level.getGameTime()));
+				level.getGameTime(), comparators));
 		CHANGED.clear();
 		EVENTS.clear();
+	}
+
+	/** Output signal of every comparator in the region; only block entities are visited (a few per chunk). */
+	private static Map<Long, Integer> comparators(ServerLevel level) {
+		Map<Long, Integer> out = new HashMap<>();
+		Box b = box;
+		for (int cx = b.minX() >> 4; cx <= b.maxX() >> 4; cx++) {
+			for (int cz = b.minZ() >> 4; cz <= b.maxZ() >> 4; cz++) {
+				LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+				if (chunk == null) {
+					continue;
+				}
+				for (BlockEntity be : chunk.getBlockEntities().values()) {
+					BlockPos p = be.getBlockPos();
+					if (be instanceof ComparatorBlockEntity c && b.contains(p.getX(), p.getY(), p.getZ())) {
+						out.put(PosKey.pack(p.getX(), p.getY(), p.getZ()), c.getOutputSignal());
+					}
+				}
+			}
+		}
+		return out;
 	}
 
 	// ---- operations ------------------------------------------------------------------------------------
@@ -207,6 +240,7 @@ public final class SandboxWorld {
 			}
 		}
 		EVENTS.clear();
+		lastComparators = null; // the client starts a new load with no comparator outputs
 		flush(server);
 		long tEnd = System.nanoTime();
 		VireClient.LOG.info("[Vire] Sandbox load {}: {} blocks, {} re-settled, {} edits in {} ms (clear {}, copy {}, settle {}, edits {}, mirror {})",

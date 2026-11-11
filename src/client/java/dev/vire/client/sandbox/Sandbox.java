@@ -26,6 +26,8 @@ public final class Sandbox {
 	private static volatile boolean starting;
 	private static volatile String error;
 	private static volatile long startedAt;
+	/** The last stop's background thread; a new start waits for it. */
+	private static volatile Thread stopper;
 	/** Bumped for every load/reset; batches of older loads are dropped. */
 	private static volatile int generation;
 
@@ -44,8 +46,14 @@ public final class Sandbox {
 		starting = true;
 		error = null;
 		startedAt = System.nanoTime();
+		Thread previous = stopper;
 		Thread t = new Thread(() -> {
 			try {
+				// a stop still running (exit with keepWarm off, then V again at once) owns the scratch
+				// world: wait for it, or the wipe below races with its shutdown
+				if (previous != null) {
+					previous.join();
+				}
 				server = SandboxServer.start(dir());
 			} catch (Throwable e) {
 				error = e.toString();
@@ -100,6 +108,7 @@ public final class Sandbox {
 			}
 		}, "Vire sandbox stopper");
 		t.setDaemon(true);
+		stopper = t;
 		t.start();
 	}
 

@@ -13,6 +13,10 @@ public final class VireConfig {
 	public int randomTickSpeed = 3;
 	public boolean exitOnDamage = true;
 	public int labelRange = 24;
+	/** Direction arrows on observers, repeaters, comparators, hoppers, droppers, pistons (toggle key J). */
+	public boolean showArrows = true;
+	/** At most this many signal labels, nearest first. */
+	public int maxLabels = 300;
 	public boolean autoLoadLitematica = true;
 	public boolean exportSkipAir = false;
 	public boolean packetLog = false;
@@ -24,6 +28,7 @@ public final class VireConfig {
 		cameraSpeed = Math.max(0.1, Math.min(10.0, Double.isNaN(cameraSpeed) ? 1.0 : cameraSpeed));
 		randomTickSpeed = clamp(randomTickSpeed, 0, 4096);
 		labelRange = clamp(labelRange, 4, 64);
+		maxLabels = clamp(maxLabels, 16, 4096);
 		return this;
 	}
 

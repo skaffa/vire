@@ -8,7 +8,9 @@ import dev.vire.client.interact.VirtualHotbar;
 import dev.vire.client.mode.PacketGuard;
 import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
+import dev.vire.client.overlay.Probe;
 import dev.vire.client.overlay.RegionOverlay;
+import dev.vire.client.overlay.SignalOverlay;
 import dev.vire.client.overlay.VireHud;
 import dev.vire.client.interact.VireWorld;
 import dev.vire.client.sandbox.Sandbox;
@@ -51,6 +53,9 @@ public final class VireClient implements ClientModInitializer {
 	private static KeyMapping slowerKey;
 	private static KeyMapping fasterKey;
 	private static KeyMapping resetKey;
+	private static KeyMapping markInKey;
+	private static KeyMapping markOutKey;
+	private static KeyMapping arrowsKey;
 	/** Tick rates the speed keys step through (PLAN.md §5.7). */
 	private static final float[] RATES = {1, 2, 5, 10, 20, 40, 60, 100};
 
@@ -73,6 +78,10 @@ public final class VireClient implements ClientModInitializer {
 		slowerKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.slower", InputConstants.KEY_LBRACKET, category));
 		fasterKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.faster", InputConstants.KEY_RBRACKET, category));
 		resetKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.reset", InputConstants.KEY_R, category));
+		// N, M and J have no vanilla 26.3 default (A D E F G L O P Q S T W C X do)
+		markInKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.mark_in", InputConstants.KEY_N, category));
+		markOutKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.mark_out", InputConstants.KEY_M, category));
+		arrowsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.arrows", InputConstants.KEY_J, category));
 
 		ClientTickEvents.END_CLIENT_TICK.register(VireClient::tick);
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
@@ -167,8 +176,26 @@ public final class VireClient implements ClientModInitializer {
 				VireWorld.reset(mc);
 			}
 		}
+		while (markInKey.consumeClick()) {
+			if (s != null) {
+				Probe.mark(mc, true);
+			}
+		}
+		while (markOutKey.consumeClick()) {
+			if (s != null) {
+				Probe.mark(mc, false);
+			}
+		}
+		while (arrowsKey.consumeClick()) {
+			if (VireMode.active()) {
+				config.showArrows = !config.showArrows;
+				save();
+				VireMode.hint(mc, "Flow arrows " + (config.showArrows ? "on" : "off"));
+			}
+		}
 		VireMode.tick(mc);
 		RegionOverlay.tick();
+		SignalOverlay.tick();
 		SelfTest.tick(mc);
 	}
 
@@ -194,6 +221,10 @@ public final class VireClient implements ClientModInitializer {
 		return stepKey;
 	}
 
+	public static KeyMapping stepManyKey() {
+		return stepManyKey;
+	}
+
 	public static KeyMapping fasterKey() {
 		return fasterKey;
 	}
@@ -204,6 +235,23 @@ public final class VireClient implements ClientModInitializer {
 
 	public static KeyMapping resetKey() {
 		return resetKey;
+	}
+
+	public static KeyMapping markInKey() {
+		return markInKey;
+	}
+
+	public static KeyMapping markOutKey() {
+		return markOutKey;
+	}
+
+	public static KeyMapping arrowsKey() {
+		return arrowsKey;
+	}
+
+	/** Short name of the key a mapping is bound to, for the HUD help line. */
+	public static String keyName(KeyMapping k) {
+		return k.getTranslatedKeyMessage().getString();
 	}
 
 	public static String status() {

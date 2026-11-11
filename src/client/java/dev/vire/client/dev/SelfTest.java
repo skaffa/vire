@@ -11,6 +11,7 @@ import dev.vire.client.mode.VireSession;
 import dev.vire.core.region.Box;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.ObserverBlock;
 import net.minecraft.world.level.block.RedstoneLampBlock;
 
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -90,6 +91,10 @@ public final class SelfTest {
 		}
 		if (MODE.equals("kit")) {
 			kitSteps();
+			return;
+		}
+		if (MODE.equals("probe")) {
+			probeSteps();
 			return;
 		}
 		if (MODE.equals("spike")) {
@@ -423,6 +428,161 @@ public final class SelfTest {
 			}
 		});
 		step(1, "report", SelfTest::report);
+	}
+
+	private static BlockPos prBlock;
+	private static BlockPos prLamp;
+	private static BlockPos prObserver;
+	private static int prSteps;
+	private static final List<Long> prRises = new ArrayList<>();
+	private static boolean prLast;
+
+	/**
+	 * M3 acceptance (PLAN.md §16): the delay tracker reads the right ticks. Repeater chain 1-3-2 into a
+	 * lamp: on delay = 2+6+4 = 12 gt, off delay = 12 gt + 4 gt lamp turn-off; the test counts its own
+	 * single steps as a second opinion. Observer clock: the meter's period equals the period the test
+	 * reads from the observer state step by step.
+	 */
+	private static void probeSteps() {
+		step(0, "quiet spot", mc -> mc.player.connection.sendCommand("tp @s 300 -60 300"));
+		step(80, "enter", mc -> {
+			body = mc.player.position();
+			click(VireClient.toggleKey());
+		});
+		waitFor("loaded", () -> VireMode.active() && VireMode.session().loaded, 2400);
+		step(1, "build repeater chain 1-3-2 + lamp", mc -> {
+			BlockPos base = BlockPos.containing(body).north(5).west(3);
+			prBlock = base;
+			prLamp = base.east(4);
+			int[] delays = {1, 3, 2};
+			for (int i = 0; i < 3; i++) {
+				// facing = input side (west), output to the east
+				VireWorld.placeState(base.east(i + 1), Blocks.REPEATER.defaultBlockState().setValue(RepeaterBlock.FACING, Direction.WEST)
+						.setValue(RepeaterBlock.DELAY, delays[i]));
+			}
+			VireWorld.placeState(prLamp, Blocks.REDSTONE_LAMP.defaultBlockState());
+		});
+		waitFor("chain placed", () -> is(prLamp, Blocks.REDSTONE_LAMP) && is(prBlock.east(3), Blocks.REPEATER), 100);
+		step(1, "mark input", mc -> dev.vire.client.overlay.Probe.set(VireMode.session(), prBlock, true));
+		aim(() -> prLamp);
+		step(1, "mark output with the M key", mc -> click(VireClient.markOutKey()));
+		waitFor("output marked with M", () -> VireMode.session().markOut != null
+				&& VireMode.session().markOut == VireWorld.key(prLamp), 50);
+		step(1, "input on", mc -> {
+			prSteps = 0;
+			VireWorld.placeState(prBlock, Blocks.REDSTONE_BLOCK.defaultBlockState());
+		});
+		waitFor("input placed", () -> is(prBlock, Blocks.REDSTONE_BLOCK), 100);
+		stepUntil(SelfTest::lampLit, 30);
+		step(1, "on delay", mc -> {
+			var m = VireMode.session().meter;
+			VireClient.LOG.info("[selftest] on: meter {} gt, counted {} steps; HUD: {}", m.delay(), prSteps,
+					dev.vire.client.overlay.Probe.hudLine(VireMode.session()));
+			check(m.delay() == prSteps, "meter on delay equals the steps counted (" + m.delay() + " vs " + prSteps + ")");
+			check(m.delay() == 12 && m.delayRising(), "repeater chain 1-3-2 on delay = 12 gt (6 rt) (" + m.delay() + ")");
+		});
+		step(1, "input off", mc -> {
+			prSteps = 0;
+			VireWorld.breakAt(prBlock);
+		});
+		waitFor("input removed", () -> Minecraft.getInstance().level.getBlockState(prBlock).isAir(), 100);
+		stepUntil(() -> !lampLit(), 40);
+		step(1, "off delay", mc -> {
+			var m = VireMode.session().meter;
+			VireClient.LOG.info("[selftest] off: meter {} gt, counted {} steps", m.delay(), prSteps);
+			check(m.delay() == prSteps, "meter off delay equals the steps counted (" + m.delay() + " vs " + prSteps + ")");
+			check(m.delay() == 16 && !m.delayRising(), "off delay = 12 gt chain + 4 gt lamp (" + m.delay() + ")");
+		});
+		step(1, "observer clock", mc -> {
+			clearMarks(VireMode.session());
+			BlockPos base = BlockPos.containing(body).south(5).west(3);
+			prObserver = base.east();
+			VireWorld.placeState(base, Blocks.REDSTONE_LAMP.defaultBlockState());
+			VireWorld.placeState(prObserver, Blocks.OBSERVER.defaultBlockState().setValue(ObserverBlock.FACING, Direction.EAST));
+		});
+		waitFor("first observer placed", () -> is(prObserver, Blocks.OBSERVER), 100);
+		step(1, "mark observer, start clock", mc -> {
+			dev.vire.client.overlay.Probe.set(VireMode.session(), prObserver, true);
+			prRises.clear();
+			prLast = observerOn();
+			VireWorld.placeState(prObserver.east(), Blocks.OBSERVER.defaultBlockState().setValue(ObserverBlock.FACING, Direction.WEST));
+		});
+		waitFor("second observer placed", () -> is(prObserver.east(), Blocks.OBSERVER), 100);
+		for (int i = 0; i < 24; i++) {
+			stepOnce();
+			step(1, "sample observer", mc -> {
+				boolean on = observerOn();
+				if (on && !prLast) {
+					prRises.add(VireMode.session().sandboxTick);
+				}
+				prLast = on;
+			});
+		}
+		step(1, "clock period", mc -> {
+			var m = VireMode.session().meter;
+			long counted = prRises.size() >= 2 ? prRises.get(prRises.size() - 1) - prRises.get(prRises.size() - 2) : -1;
+			VireClient.LOG.info("[selftest] observer clock rises at {}; meter period {} gt, {} Hz, on {} gt; HUD: {}", prRises, m.period(),
+					m.frequency(), m.onTime(), dev.vire.client.overlay.Probe.hudLine(VireMode.session()));
+			check(counted > 0 && m.period() == counted, "meter period equals the observed period (" + m.period() + " vs " + counted + ")");
+		});
+		step(1, "screenshot setup", mc -> {
+			VireSession s = VireMode.session();
+			// south of the chain, looking north and down at it (yaw 180 = north)
+			s.camera.snapTo(body.x - 0.5, body.y + 2.5, body.z - 1.5, 180, 35);
+			clearMarks(s);
+			dev.vire.client.overlay.Probe.set(s, prBlock, true);
+			dev.vire.client.overlay.Probe.set(s, prLamp, false);
+			VireWorld.placeState(prBlock, Blocks.REDSTONE_BLOCK.defaultBlockState());
+		});
+		for (int i = 0; i < 7; i++) {
+			stepOnce();
+		}
+		step(10, "screenshot", mc -> Screenshot.grab(mc.gameDirectory, "vire-probe.png", mc.gameRenderer.mainRenderTarget(), 1,
+				msg -> VireClient.LOG.info("[selftest] screenshot: {}", msg.getString())));
+		step(10, "exit", mc -> click(VireClient.toggleKey()));
+		waitFor("left", () -> !VireMode.active(), 100);
+		step(1, "no packets blocked", mc -> check(PacketGuard.dropped() == 0, "no packet blocked (" + PacketGuard.dropped() + ")"));
+		step(1, "report", SelfTest::report);
+	}
+
+	private static void clearMarks(VireSession s) {
+		s.markIn = null;
+		s.markOut = null;
+		s.meter.reset();
+	}
+
+	private static boolean lampLit() {
+		BlockState st = Minecraft.getInstance().level.getBlockState(prLamp);
+		return st.is(Blocks.REDSTONE_LAMP) && st.getValue(RedstoneLampBlock.LIT);
+	}
+
+	private static boolean observerOn() {
+		BlockState st = Minecraft.getInstance().level.getBlockState(prObserver);
+		return st.is(Blocks.OBSERVER) && st.getValue(ObserverBlock.POWERED);
+	}
+
+	/** Steps one tick at a time (counting in {@code prSteps}) until {@code cond} holds, at most {@code max} steps. */
+	private static void stepUntil(java.util.function.BooleanSupplier cond, int max) {
+		for (int i = 0; i < max; i++) {
+			step(1, "step until", mc -> {
+				if (cond.getAsBoolean()) {
+					skipTo("step until done");
+					return;
+				}
+				prSteps++;
+				tickMark = VireMode.session().sandboxTick;
+				click(VireClient.stepKey());
+			});
+			waitFor("stepped", () -> VireMode.session().sandboxTick == tickMark + 1, 100);
+		}
+		step(1, "step until done", mc -> check(cond.getAsBoolean(), "condition reached within " + max + " steps"));
+	}
+
+	/** Jumps forward to the next step with this name. */
+	private static void skipTo(String name) {
+		while (index < STEPS.size() && !STEPS.get(index).name().equals(name)) {
+			index++;
+		}
 	}
 
 	/** Leak check: 10 enter/exit cycles, then 3 sandbox restarts; heap must not keep growing. */

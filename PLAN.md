@@ -352,7 +352,8 @@ Drawn with vanilla `Gizmos` from the client tick, as in Gauge and Ortho.
 - **Region box** and **unknown block markers** (§5.4).
 - **Control bar** at the top (HUD, not a screen, so the game stays playable):
   `[⏸] [⏭ 1] [⏭ N] [▶]  20 TPS  tick 1234  |  Reset  Undo  Mark in/out  |  Exit`.
-  Keys: `V` exit, `P` pause/play, `.` step 1, `,` step N, `[` `]` speed. All rebindable.
+  Keys: `V` exit, `K` pause/play (`P` is vanilla), `.` step 1, `,` step N, `[` `]` speed, `N` / `M`
+  mark in / out, `J` arrows. All rebindable.
 
 ---
 
@@ -553,6 +554,21 @@ Each milestone ends with a build that runs.
 - Signal labels, flow arrows, delay tracker, frequency meter, control bar polish.
 - *Done when*: the delay tracker reads the right ticks on the test kit (repeater chain = sum of
   delays; observer clock period = 2 gt).
+- **M3 done 2026-11-11.** `SignalOverlay` (gizmos, scan adapted from Gauge): signal labels for dust
+  (only when on), repeaters (`L` = locked), comparators (`−` = subtract), observers, torches,
+  levers, buttons, plates, targets; `S`/`W` labels on strongly/weakly powered blocks; flow arrows
+  (`J`) on repeaters, comparators, observers, hoppers, droppers/dispensers, pistons. Comparator
+  outputs live in the block entity, which the state mirror does not carry, so every
+  `MirrorBatch` now holds the region's comparator outputs when they changed. Delay tracker:
+  `N` / `M` mark input / output; core `DelayMeter` (unit tested) gets both signals after every
+  batch with the sandbox tick: delay, period, frequency, on time. Control bar: clock in colour,
+  TPS, tick, region numbers, meter line, two help lines built from the bound keys.
+  Self-test `-Pselftest=probe` PASS: repeater chain 1-3-2 into a lamp reads **12 gt on** and
+  **16 gt off** (12 + 4 gt lamp turn-off), equal to the test's own step count; the two-observer
+  clock (same layout as the kit, which matched the real server) reads **period 6 gt, 3.33 Hz,
+  on 2 gt**, equal to the period the test reads step by step. The "2 gt" above was a guess.
+  Also fixed: with `keepWarm` off, leaving and entering at once started a new sandbox while the
+  old one was still stopping, and the scratch-world wipe failed; a start now waits for the stop.
 
 **M4 — Ghost layer, BOM, build assist**
 - Exit dialog, designs saved in `config/vire/designs/`, ghost rendering, normalized diff, BOM
