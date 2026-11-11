@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "vire",
+	"version": "${version}",
+	"name": "Vire",
+	"description": "Client-side redstone sandbox: prototype circuits in a private copy of the world you stand in, run them with exact vanilla redstone, then build them from a ghost overlay or export a .litematic. Sends no block packets to the server.",
+	"authors": [
+		"Skaffa",
+		"Claude (Anthropic)"
+	],
+	"contact": {
+		"homepage": "https://github.com/skaffa/vire",
+		"sources": "https://github.com/skaffa/vire",
+		"issues": "https://github.com/skaffa/vire/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/vire/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.vire.client.VireClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "vire.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*",
+		"litematica": "*"
+	}
+}

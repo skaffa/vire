@@ -1,0 +1,6 @@
+{
+	"key.category.vire.main": "Vire",
+	"key.vire.toggle": "Toggle Vire Mode",
+	"vire.message.loaded": "Vire %s loaded. Config: %s",
+	"vire.message.not_ready": "Vire Mode is not built yet (milestone M1)."
+}
