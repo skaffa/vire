@@ -91,7 +91,9 @@ public final class VireMode {
 	}
 
 	private static boolean start(Minecraft mc, LocalPlayer p, ClientLevel level) {
-		Box box = Box.centered(p.getBlockX(), p.getBlockY(), p.getBlockZ(), VireClient.config.regionSize,
+		// inside the region of the last session here: continue it (same box, its edits on top of the real world now)
+		dev.vire.core.design.SessionStore.Saved resume = Sessions.resumable(mc, level, p.getBlockX(), p.getBlockY(), p.getBlockZ());
+		Box box = resume != null ? resume.box() : Box.centered(p.getBlockX(), p.getBlockY(), p.getBlockZ(), VireClient.config.regionSize,
 				level.getMinY(), level.getMaxY());
 		FreeCamera camera = new FreeCamera(level);
 		Vec3 eye = p.getEyePosition();
@@ -104,12 +106,24 @@ public final class VireMode {
 
 		PacketGuard.reset();
 		VireSession s = new VireSession(level, p, box, camera, saved);
+		s.world = Designs.worldId(mc, level);
 		snapshot(s);
+		int resumed = resume == null ? 0 : Sessions.apply(s, resume);
 		session = s;
 		VireWorld.reload(s);
 		mc.setCameraEntity(camera);
 		say(mc, "Vire Mode on: region " + box.sizeX() + "×" + box.sizeY() + "×" + box.sizeZ()
 				+ ". Nothing you do here reaches the server. Paused: K to run, . to step. V to leave.", ChatFormatting.AQUA);
+		if (resumed > 0) {
+			say(mc, "Continued your last session here: " + resumed + " changed blocks. Ctrl+Z removes them all; /vire discard forgets it.",
+					ChatFormatting.AQUA);
+		} else {
+			dev.vire.core.design.SessionStore.Saved other = Sessions.load(s.world);
+			if (other != null && resume == null) {
+				say(mc, "Fresh copy. Your last session is around " + Sessions.where(other.box()) + " (press V there to continue it).",
+						ChatFormatting.GRAY);
+			}
+		}
 		return true;
 	}
 
@@ -200,6 +214,13 @@ public final class VireMode {
 		} catch (RuntimeException e) {
 			VireClient.LOG.warn("[Vire] Could not capture the design", e);
 		}
+		// the session file: continue it with V in this region; a disconnect or world change asks on the next join
+		boolean seen = !reason.equals("disconnected") && !reason.equals("world changed");
+		try {
+			Sessions.save(mc, s, seen, reason);
+		} catch (RuntimeException e) {
+			VireClient.LOG.warn("[Vire] Could not save the session", e);
+		}
 		int restored = 0;
 		if (restore && mc.level == s.level) {
 			restored = VireWorld.restore(mc, s);
@@ -241,6 +262,7 @@ public final class VireMode {
 			return;
 		}
 		VireWorld.applyMirror(s);
+		Sessions.tickActive(mc, s);
 		LocalPlayer p = mc.player;
 		if (p == null || mc.level != s.level || p != s.player) {
 			exit(mc, "world changed", false);
@@ -306,6 +328,11 @@ public final class VireMode {
 
 	/** Short message above the hotbar. */
 	public static void hint(Minecraft mc, String msg) {
+		VireSession s = session;
+		if (s != null) {
+			s.lastAction = msg;
+			s.lastActionAt = System.currentTimeMillis();
+		}
 		if (mc.player != null) {
 			mc.player.sendOverlayMessage(Component.literal(msg).withStyle(ChatFormatting.AQUA));
 		}

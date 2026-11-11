@@ -19,6 +19,8 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.fabricmc.fabric.api.entity.FakePlayer;
 
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 
@@ -272,6 +274,19 @@ public final class SandboxWorld {
 		if (flushNow) {
 			flush(server);
 		}
+	}
+
+	/** Right click on a block with an empty hand, by a fake player (vanilla code does the rest). */
+	static void use(SandboxServer server, BlockHitResult hit) {
+		ServerLevel level = server.overworld();
+		BlockPos pos = hit.getBlockPos();
+		if (box == null || !box.contains(pos.getX(), pos.getY(), pos.getZ())) {
+			return;
+		}
+		FakePlayer player = FakePlayer.get(level);
+		player.setPos(hit.getLocation());
+		level.getBlockState(pos).useWithoutItem(level, player, hit);
+		flush(server);
 	}
 
 	/** Empties the previously loaded area (raw, nothing mirrored) and releases its chunks. */

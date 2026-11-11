@@ -59,7 +59,7 @@ public final class PaletteScreen extends Screen {
 		search.setHint(Component.literal("Search blocks…").withStyle(ChatFormatting.DARK_GRAY));
 		search.setResponder(s -> refilter());
 		addRenderableWidget(search);
-		setInitialFocus(search);
+		// not focused at first: digits go to the hotbar, E closes; typing a letter starts the search
 		refilter();
 	}
 
@@ -97,7 +97,7 @@ public final class PaletteScreen extends Screen {
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
 		super.extractRenderState(g, mx, my, delta);
-		g.centeredText(font, Component.literal("Vire blocks: click = selected slot, hover + 1–9 = that slot"), width / 2, 4, 0xFFFFFFFF);
+		g.centeredText(font, Component.literal("Click = selected slot · hover + 1–9 = that slot · type to search, Enter to stop"), width / 2, 4, 0xFFFFFFFF);
 		int hovered = indexAt(mx, my);
 		for (int r = 0; r < rowsVisible; r++) {
 			for (int c = 0; c < cols; c++) {
@@ -147,15 +147,25 @@ public final class PaletteScreen extends Screen {
 		return true;
 	}
 
+	/** A digit just went to a hotbar slot; its character event must not reach the search box. */
+	private boolean swallowChar;
+
 	@Override
 	public boolean keyPressed(KeyEvent e) {
 		int k = e.key();
+		swallowChar = false;
 		if (k >= InputConstants.KEY_1 && k <= InputConstants.KEY_9 && minecraft != null) {
 			double mx = minecraft.mouseHandler.getScaledXPos(minecraft.getWindow());
 			double my = minecraft.mouseHandler.getScaledYPos(minecraft.getWindow());
 			int i = indexAt(mx, my);
 			if (i >= 0) {
 				VirtualHotbar.set(k - InputConstants.KEY_1, shown.get(i));
+				swallowChar = true;
+				return true;
+			}
+			if (!search.isFocused()) {
+				VirtualHotbar.select(k - InputConstants.KEY_1);
+				swallowChar = true;
 				return true;
 			}
 		}
@@ -163,7 +173,23 @@ public final class PaletteScreen extends Screen {
 			onClose();
 			return true;
 		}
+		if (k == InputConstants.KEY_RETURN && search.isFocused()) {
+			setFocused(null); // Enter ends the search; digits and E work again
+			return true;
+		}
+		if (!search.isFocused() && k >= InputConstants.KEY_A && k <= InputConstants.KEY_Z) {
+			setFocused(search); // the character event that follows lands in the box
+		}
 		return super.keyPressed(e);
+	}
+
+	@Override
+	public boolean charTyped(net.minecraft.client.input.CharacterEvent e) {
+		if (swallowChar) {
+			swallowChar = false;
+			return true;
+		}
+		return super.charTyped(e);
 	}
 
 	@Override

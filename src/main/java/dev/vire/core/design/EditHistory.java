@@ -41,6 +41,8 @@ public final class EditHistory<S> {
 	private final Deque<Step<S>> undo = new ArrayDeque<>();
 	private final Deque<Step<S>> redo = new ArrayDeque<>();
 	private Map<Long, Change<S>> open;
+	/** Steps that fell off the undo limit, folded per position: no longer undoable, but still part of the build. */
+	private final Map<Long, Change<S>> base = new LinkedHashMap<>();
 
 	public EditHistory(int limit) {
 		if (limit < 1) {
@@ -87,7 +89,10 @@ public final class EditHistory<S> {
 		}
 		undo.push(new Step<>(real));
 		while (undo.size() > limit) {
-			undo.removeLast();
+			for (Change<S> c : undo.removeLast().changes()) {
+				Change<S> prev = base.get(c.key());
+				base.put(c.key(), new Change<>(c.key(), prev == null ? c.before() : prev.before(), c.after()));
+			}
 		}
 		redo.clear();
 		return true;
@@ -126,9 +131,22 @@ public final class EditHistory<S> {
 		return out;
 	}
 
+	/**
+	 * Every change that is part of the build now, oldest first: the folded base, then the undo steps.
+	 * Replaying these in order rebuilds the current design.
+	 */
+	public List<Change<S>> changes() {
+		List<Change<S>> out = new ArrayList<>(base.values());
+		for (Step<S> s : steps()) {
+			out.addAll(s.changes());
+		}
+		return out;
+	}
+
 	public void clear() {
 		undo.clear();
 		redo.clear();
+		base.clear();
 		open = null;
 	}
 }

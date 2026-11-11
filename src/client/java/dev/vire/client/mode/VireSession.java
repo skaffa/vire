@@ -53,6 +53,16 @@ public final class VireSession {
 	public final dev.vire.core.probe.DelayMeter meter = new dev.vire.core.probe.DelayMeter();
 	/** Load the meter last saw; a new load restarts the circuit, so the meter starts over. */
 	public int meterGeneration = -1;
+	/** Where this session runs ({@code Designs.worldId}), taken on enter: still right while disconnecting. */
+	public String world = "?";
+	/** Edits changed since the session file was last written; ticks since then. */
+	public boolean dirty;
+	public int sinceSave;
+	/** Last hint shown, for the values panel (so a reset or undo is seen even when the overlay text is missed). */
+	public String lastAction;
+	/** Ticks left of the white region outline after a reset. */
+	public int resetFlash;
+	public long lastActionAt;
 
 	VireSession(ClientLevel level, LocalPlayer player, Box box, FreeCamera camera, ClientInput savedInput) {
 		this.level = level;

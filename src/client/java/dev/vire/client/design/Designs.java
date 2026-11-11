@@ -67,10 +67,8 @@ public final class Designs {
 	 */
 	public static Design capture(Minecraft mc, VireSession s, String name) {
 		Map<Long, StateRef> design = new HashMap<>();
-		for (EditHistory.Step<BlockState> step : s.history.steps()) {
-			for (EditHistory.Change<BlockState> c : step.changes()) {
-				design.put(c.key(), ref(c.after()));
-			}
+		for (EditHistory.Change<BlockState> c : s.history.changes()) {
+			design.put(c.key(), ref(c.after()));
 		}
 		Map<Long, StateRef> real = new HashMap<>();
 		for (Long k : design.keySet()) {
@@ -84,7 +82,7 @@ public final class Designs {
 		if (entries.isEmpty()) {
 			return null;
 		}
-		return new Design(name, worldId(mc, s.level), System.currentTimeMillis(), entries);
+		return new Design(name, s.world, System.currentTimeMillis(), entries);
 	}
 
 	/** A free default name: {@code vire_2026-11-11_1530}. */

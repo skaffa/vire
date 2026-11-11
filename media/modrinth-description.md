@@ -6,15 +6,24 @@ Vire is client-side only. It needs nothing on the server.
 
 The copy runs in a small private Minecraft server inside your client, so repeaters, comparators, observers, pistons (block events, quasi-connectivity), falling blocks, TNT and items behave exactly as in the real game. A test kit checks it against a real server, tick by tick.
 
-- Starts paused. **K** runs or pauses, **.** steps 1 game tick, **,** steps 10.
+- Starts paused. **K** runs or pauses, **,** steps 1 game tick, **.** steps 10.
 - **[** and **]** change the speed from 1 to 100 ticks per second.
 - **R** resets the circuit to your design; **Ctrl+Z** / **Ctrl+Y** undo and redo.
+- Right click flips levers, presses buttons, opens doors and gates, and changes repeater delay and comparator mode. Ctrl + right click places against them.
 
 ## See what it does
 
 - Power levels on dust, outputs of repeaters, comparators and observers, and `S`/`W` on strongly or weakly powered blocks.
 - Arrows showing where repeaters, comparators, observers, hoppers, droppers and pistons output (**J**).
 - **Delay meter**: mark an input (**N**) and an output (**M**). Vire shows the delay as `Δ 12 gt (6 rt, 0.60 s)`, and for a clock its period, frequency and on time. Exact, because both ends are measured on the same game tick counter.
+
+## A clear overview
+
+A values panel shows the clock, speed, tick, edits, the delay meter, the block you look at and your body's health. A keys panel lists every key as you have bound it (**H** hides it). The crosshair and block outline turn green on something you can flip or change, and red outside the region.
+
+## Your session is kept
+
+Leave and press **V** again in the same region: you continue where you left off. The session is also saved every few seconds, so after a crash or kick the next join asks whether to restore it.
 
 ## Build it for real
 

@@ -22,6 +22,8 @@ public final class VireConfig {
 	public int maxGhostsDrawn = 2000;
 	/** Materials panel next to the ghost (toggle key B). */
 	public boolean showBom = true;
+	/** Keys panel on the right in Vire Mode (toggle key H). */
+	public boolean showKeys = true;
 	/** At most this many signal labels, nearest first. */
 	public int maxLabels = 300;
 	public boolean autoLoadLitematica = true;

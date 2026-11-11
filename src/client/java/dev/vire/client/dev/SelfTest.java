@@ -76,6 +76,8 @@ public final class SelfTest {
 	private static BlockPos sandPos;
 	private static final Map<BlockPos, BlockState> realChanges = new HashMap<>();
 	private static long heapStart;
+	private static BlockPos leverPos;
+	private static int editsBefore;
 
 	private SelfTest() {
 	}
@@ -85,6 +87,12 @@ public final class SelfTest {
 			return;
 		}
 		VireClient.LOG.info("[selftest] enabled ({})", MODE);
+		// sessions of earlier runs would be continued on enter and change what the scripts expect
+		try (var files = java.nio.file.Files.list(dev.vire.client.mode.Sessions.STORE.file("x").getParent())) {
+			files.forEach(f -> f.toFile().delete());
+		} catch (java.io.IOException | java.io.UncheckedIOException e) {
+			// no sessions folder yet
+		}
 		if (MODE.equals("cycles")) {
 			cycleSteps();
 			return;
@@ -295,6 +303,32 @@ public final class SelfTest {
 		});
 		waitFor("reset rebuilds the design, paused, piston retracted",
 				() -> VireMode.session().frozen && is(pistonPos.above(), Blocks.SMOOTH_STONE), 200);
+		// right click uses levers (an input, undone by reset) and repeaters (a setting, kept as an edit)
+		step(1, "lever next to a lamp", mc -> {
+			leverPos = BlockPos.containing(body).east(6);
+			VireWorld.placeState(leverPos.east(), Blocks.REDSTONE_LAMP.defaultBlockState());
+			VireWorld.placeState(leverPos, Blocks.LEVER.defaultBlockState().setValue(net.minecraft.world.level.block.LeverBlock.FACE,
+					net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
+		});
+		waitFor("lever placed", () -> is(leverPos, Blocks.LEVER) && is(leverPos.east(), Blocks.REDSTONE_LAMP), 100);
+		aim(() -> leverPos);
+		step(1, "flip the lever", mc -> {
+			editsBefore = VireMode.session().history.undoSize();
+			click(mc.options.keyUse);
+		});
+		waitFor("right click flips the lever and lights the lamp",
+				() -> lever() && Minecraft.getInstance().level.getBlockState(leverPos.east()).getValue(net.minecraft.world.level.block.RedstoneLampBlock.LIT), 100);
+		step(1, "a lever flip is not an edit", mc -> check(VireMode.session().history.undoSize() == editsBefore, "lever flip not in the edit history"));
+		aim(() -> cRepeater);
+		step(1, "change repeater delay", mc -> click(mc.options.keyUse));
+		waitFor("right click changes repeater delay 1 -> 2", () -> is(cRepeater, Blocks.REPEATER)
+				&& Minecraft.getInstance().level.getBlockState(cRepeater).getValue(RepeaterBlock.DELAY) == 2, 100);
+		step(1, "delay change is an edit; reset", mc -> {
+			check(VireMode.session().history.undoSize() == editsBefore + 1, "repeater delay change is an undoable edit");
+			click(VireClient.resetKey());
+		});
+		waitFor("reset turns the lever back off and keeps delay 2", () -> !lever() && is(cRepeater, Blocks.REPEATER)
+				&& Minecraft.getInstance().level.getBlockState(cRepeater).getValue(RepeaterBlock.DELAY) == 2, 200);
 		step(1, "sand in the air", mc -> {
 			sandPos = BlockPos.containing(body).north(6).above(5);
 			VireWorld.placeState(sandPos, Blocks.SAND.defaultBlockState());
@@ -336,11 +370,18 @@ public final class SelfTest {
 			click(VireClient.toggleKey());
 		});
 		waitFor("re-entered", VireMode::active, 200);
+		waitFor("V in the same region continues the last session", () -> VireMode.session().loaded
+				&& VireMode.session().history.undoSize() == 1
+				&& Minecraft.getInstance().level.getBlockState(doorPos.above()).getBlock() instanceof DoorBlock
+				&& Minecraft.getInstance().level.getBlockState(cRepeater).getValue(RepeaterBlock.DELAY) == 2, 200);
 		step(5, "damage ends Vire Mode", mc -> {
 			mc.player.connection.sendCommand("damage " + mc.player.getName().getString() + " 1");
 		});
 		step(30, "check forced exit, clean up", mc -> {
 			check(!VireMode.active(), "damage forced exit");
+			var saved = dev.vire.client.mode.Sessions.load(dev.vire.client.design.Designs.worldId(mc));
+			check(saved != null && saved.clean() && !saved.edits().isEmpty(), "session file kept after the forced exit");
+			dev.vire.client.mode.Sessions.deleteHere(mc);
 			check(PacketGuard.dropped() == 0, "no packets reached the safety net in session 2");
 			mc.player.connection.sendCommand("setblock " + p1.getX() + " " + p1.getY() + " " + p1.getZ() + " " + BlockStateParser.serialize(p1Before));
 			mc.player.connection.sendCommand("setblock " + p2.getX() + " " + p2.getY() + " " + p2.getZ() + " " + BlockStateParser.serialize(p2Before));
@@ -673,6 +714,11 @@ public final class SelfTest {
 			click(VireClient.stepKey());
 		});
 		waitFor("stepped", () -> VireMode.session().sandboxTick == tickMark + 1, 100);
+	}
+
+	private static boolean lever() {
+		BlockState st = Minecraft.getInstance().level.getBlockState(leverPos);
+		return st.is(Blocks.LEVER) && st.getValue(net.minecraft.world.level.block.LeverBlock.POWERED);
 	}
 
 	static boolean is(BlockPos pos, net.minecraft.world.level.block.Block block) {

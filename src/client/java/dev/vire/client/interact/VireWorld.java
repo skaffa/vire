@@ -23,6 +23,16 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockEventData;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.ComparatorBlock;
+import net.minecraft.world.level.block.DaylightDetectorBlock;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.NoteBlock;
+import net.minecraft.world.level.block.RepeaterBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -134,10 +144,67 @@ public final class VireWorld {
 
 	// ---- user actions -------------------------------------------------------------------------------
 
-	/** Right click: place the selected virtual hotbar block against the targeted face. */
+	/** What right click does on a block. */
+	public enum Use {
+		/** Flip or press: an input of the circuit, not part of the design (reset puts it back). */
+		INPUT,
+		/** Change a setting that is part of the design (repeater delay, comparator mode). */
+		SETTING
+	}
+
+	/** What right click on {@code state} does, or null when it places a block against it. */
+	public static Use useOf(BlockState state) {
+		Block b = state.getBlock();
+		if (b instanceof LeverBlock || b instanceof ButtonBlock || b instanceof FenceGateBlock
+				|| (b instanceof DoorBlock && !state.is(Blocks.IRON_DOOR)) || (b instanceof TrapDoorBlock && !state.is(Blocks.IRON_TRAPDOOR))) {
+			return Use.INPUT;
+		}
+		if (b instanceof RepeaterBlock || b instanceof ComparatorBlock || b instanceof NoteBlock || b instanceof DaylightDetectorBlock) {
+			return Use.SETTING;
+		}
+		return null;
+	}
+
+	/** The state a SETTING use leads to (the same property vanilla cycles). */
+	private static BlockState settingAfter(BlockState state) {
+		Block b = state.getBlock();
+		if (b instanceof RepeaterBlock) {
+			return state.cycle(RepeaterBlock.DELAY);
+		}
+		if (b instanceof ComparatorBlock) {
+			return state.cycle(ComparatorBlock.MODE);
+		}
+		if (b instanceof NoteBlock) {
+			return state.cycle(NoteBlock.NOTE);
+		}
+		if (b instanceof DaylightDetectorBlock) {
+			return state.cycle(DaylightDetectorBlock.INVERTED);
+		}
+		return state;
+	}
+
+	/**
+	 * Right click: use the targeted lever, button, door, repeater… (Ctrl places against it instead), or
+	 * place the selected virtual hotbar block against the targeted face.
+	 */
 	public static void place(Minecraft mc, boolean secondary) {
 		VireSession s = VireMode.session();
 		if (s == null || !(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) {
+			return;
+		}
+		BlockPos target = hit.getBlockPos();
+		BlockState targetState = s.level.getBlockState(target);
+		Use use = useOf(targetState);
+		if (use != null && !secondary) {
+			if (!s.box.contains(target.getX(), target.getY(), target.getZ())) {
+				VireMode.hint(mc, "Outside the Vire region");
+				return;
+			}
+			if (use == Use.SETTING) {
+				record(s, target, settingAfter(targetState));
+			}
+			// vanilla does the rest in the sandbox: sounds, neighbor updates, button release ticks
+			Sandbox.use(hit);
 			return;
 		}
 		ItemStack stack = VirtualHotbar.selectedStack();
@@ -210,6 +277,7 @@ public final class VireWorld {
 		s.history.begin();
 		s.history.add(key(pos), s.level.getBlockState(pos), after);
 		s.history.end();
+		s.dirty = true;
 	}
 
 	/** Middle click: put the targeted block in the virtual hotbar. */
@@ -231,6 +299,7 @@ public final class VireWorld {
 			VireMode.hint(mc, "Nothing to undo");
 			return;
 		}
+		s.dirty = true;
 		reload(s);
 		VireMode.hint(mc, "Undo (" + s.history.undoSize() + " left), circuit reset");
 	}
@@ -244,6 +313,7 @@ public final class VireWorld {
 			VireMode.hint(mc, "Nothing to redo");
 			return;
 		}
+		s.dirty = true;
 		reload(s);
 		VireMode.hint(mc, "Redo, circuit reset");
 	}
@@ -253,7 +323,8 @@ public final class VireWorld {
 		VireSession s = VireMode.session();
 		if (s != null) {
 			reload(s);
-			VireMode.hint(mc, "Circuit reset (paused)");
+			VireMode.hint(mc, "Circuit reset to your design (paused)");
+			s.resetFlash = 10;
 		}
 	}
 
@@ -264,10 +335,8 @@ public final class VireWorld {
 
 	public static List<SandboxWorld.Edit> edits(EditHistory<BlockState> history) {
 		List<SandboxWorld.Edit> out = new ArrayList<>();
-		for (EditHistory.Step<BlockState> step : history.steps()) {
-			for (EditHistory.Change<BlockState> c : step.changes()) {
-				out.add(new SandboxWorld.Edit(c.key(), c.after(), !c.after().isAir() && c.after().getFluidState().isEmpty()));
-			}
+		for (EditHistory.Change<BlockState> c : history.changes()) {
+			out.add(new SandboxWorld.Edit(c.key(), c.after(), !c.after().isAir() && c.after().getFluidState().isEmpty()));
 		}
 		return out;
 	}

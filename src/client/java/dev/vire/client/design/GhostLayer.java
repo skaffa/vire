@@ -73,10 +73,12 @@ public final class GhostLayer {
 	}
 
 	private static final int STROKE_BLOCKING = 0xFFFF3B30;
-	private static final int FILL_BLOCKING = 0x30FF2020;
+	private static final int FILL_BLOCKING = 0x55FF2020;
 	private static final int STROKE_WRONG = 0xFFFFD020;
-	private static final int FILL_WRONG = 0x28FFD020;
+	private static final int FILL_WRONG = 0x40FFD020;
 	private static final double INSET = 0.03;
+	/** Red and yellow boxes surround a real solid block: drawn inside it, the block hides them up close. */
+	private static final double OUTSET = 0.02;
 
 	private static Design design;
 	private static final List<Ghost> GHOSTS = new ArrayList<>();
@@ -199,13 +201,13 @@ public final class GhostLayer {
 		for (Ghost g : inRange) {
 			switch (g.status) {
 				case BLOCKING -> {
-					Gizmos.cuboid(inset(g.pos), GizmoStyle.strokeAndFill(STROKE_BLOCKING, 1.5f, FILL_BLOCKING));
+					Gizmos.cuboid(outset(g.pos), GizmoStyle.strokeAndFill(STROKE_BLOCKING, 3.0f, FILL_BLOCKING));
 					if (!g.removal && g.difference != null && g.pos.distToCenterSqr(eye) < 256) {
 						label(g, g.difference, STROKE_BLOCKING);
 					}
 				}
 				case WRONG -> {
-					Gizmos.cuboid(inset(g.pos), GizmoStyle.strokeAndFill(STROKE_WRONG, 1.5f, FILL_WRONG));
+					Gizmos.cuboid(outset(g.pos), GizmoStyle.strokeAndFill(STROKE_WRONG, 3.0f, FILL_WRONG));
 					if (g.difference != null && g.pos.distToCenterSqr(eye) < 256) {
 						label(g, g.difference, STROKE_WRONG);
 					}
@@ -296,6 +298,10 @@ public final class GhostLayer {
 	private static void label(Ghost g, String text, int color) {
 		Gizmos.billboardText(text, new Vec3(g.pos.getX() + 0.5, g.pos.getY() + 1.3, g.pos.getZ() + 0.5),
 				TextGizmo.Style.forColorAndCentered(color).withScale(0.22f));
+	}
+
+	private static AABB outset(BlockPos p) {
+		return new AABB(p).inflate(OUTSET);
 	}
 
 	private static AABB inset(BlockPos p) {

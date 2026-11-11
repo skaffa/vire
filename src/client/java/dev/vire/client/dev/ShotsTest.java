@@ -42,6 +42,9 @@ final class ShotsTest {
 			mc.player.connection.sendCommand("tp @s 300 -60 360 180 0");
 			mc.player.connection.sendCommand("time set 6000");
 			mc.player.connection.sendCommand("weather clear");
+			// no mobs in the pictures (zombies burn in daylight)
+			mc.player.connection.sendCommand("gamerule spawn_monsters false");
+			mc.player.connection.sendCommand("kill @e[type=!player]");
 			mc.options.chatVisibility().set(ChatVisiblity.HIDDEN);
 		});
 		step(60, "clear", mc -> {

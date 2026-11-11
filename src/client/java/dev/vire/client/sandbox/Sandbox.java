@@ -154,6 +154,11 @@ public final class Sandbox {
 		run(s -> SandboxWorld.apply(s, edit, true));
 	}
 
+	/** Right click on a block in the sandbox, as a player would (lever, button, repeater…). */
+	public static void use(net.minecraft.world.phys.BlockHitResult hit) {
+		run(s -> SandboxWorld.use(s, hit));
+	}
+
 	public static void togglePause() {
 		run(s -> s.tickRateManager().setFrozen(!s.tickRateManager().isFrozen()));
 	}

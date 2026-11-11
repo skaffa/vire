@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import dev.vire.client.dev.SelfTest;
 import dev.vire.client.interact.VirtualHotbar;
 import dev.vire.client.mode.PacketGuard;
+import dev.vire.client.mode.Sessions;
 import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
 import dev.vire.client.design.BomHud;
@@ -67,6 +68,7 @@ public final class VireClient implements ClientModInitializer {
 	private static KeyMapping markOutKey;
 	private static KeyMapping arrowsKey;
 	private static KeyMapping bomKey;
+	private static KeyMapping helpKey;
 	/** Tick rates the speed keys step through (PLAN.md §5.7). */
 	private static final float[] RATES = {1, 2, 5, 10, 20, 40, 60, 100};
 
@@ -84,8 +86,8 @@ public final class VireClient implements ClientModInitializer {
 		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
 		toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.toggle", InputConstants.KEY_V, category));
 		pauseKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.pause", InputConstants.KEY_K, category));
-		stepKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.step", InputConstants.KEY_PERIOD, category));
-		stepManyKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.step_many", InputConstants.KEY_COMMA, category));
+		stepKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.step", InputConstants.KEY_COMMA, category));
+		stepManyKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.step_many", InputConstants.KEY_PERIOD, category));
 		slowerKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.slower", InputConstants.KEY_LBRACKET, category));
 		fasterKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.faster", InputConstants.KEY_RBRACKET, category));
 		resetKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.reset", InputConstants.KEY_R, category));
@@ -94,6 +96,7 @@ public final class VireClient implements ClientModInitializer {
 		markOutKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.mark_out", InputConstants.KEY_M, category));
 		arrowsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.arrows", InputConstants.KEY_J, category));
 		bomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.bom", InputConstants.KEY_B, category));
+		helpKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.help", InputConstants.KEY_H, category));
 		GhostBlockRenderer.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(VireClient::tick);
@@ -101,7 +104,10 @@ public final class VireClient implements ClientModInitializer {
 			if (config.keepWarm) {
 				Sandbox.ensureStarted(); // boots in the background, so V is instant later
 			}
-			mc.execute(GhostLayer::restoreActive);
+			mc.execute(() -> {
+				GhostLayer.restoreActive();
+				Sessions.onJoin(mc);
+			});
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> mc.execute(() -> {
 			VireMode.exit(mc, "disconnected", false);
@@ -118,6 +124,22 @@ public final class VireClient implements ClientModInitializer {
 				vanilla.extractRenderState(g, delta);
 			}
 		});
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (g, delta) -> {
+			if (VireMode.active()) {
+				VireHud.crosshair(g);
+			} else {
+				vanilla.extractRenderState(g, delta);
+			}
+		});
+		// the XP bar and level sit where the virtual hotbar's item name goes; the real held item name is not ours
+		for (Identifier id : List.of(VanillaHudElements.INFO_BAR, VanillaHudElements.EXPERIENCE_LEVEL, VanillaHudElements.INFO_BAR_FOREGROUND,
+				VanillaHudElements.HELD_ITEM_TOOLTIP)) {
+			HudElementRegistry.replaceElement(id, vanilla -> (g, delta) -> {
+				if (!VireMode.active()) {
+					vanilla.extractRenderState(g, delta);
+				}
+			});
+		}
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(
 				ClientCommands.literal("vire")
@@ -187,6 +209,23 @@ public final class VireClient implements ClientModInitializer {
 							}
 							return 1;
 						}))
+						.then(ClientCommands.literal("help").executes(ctx -> {
+							for (String line : help()) {
+								ctx.getSource().sendFeedback(Component.literal(line));
+							}
+							return 1;
+						}))
+						.then(ClientCommands.literal("discard").executes(ctx -> {
+							Minecraft mc = Minecraft.getInstance();
+							if (VireMode.active()) {
+								ctx.getSource().sendError(Component.literal("[Vire] Leave Vire Mode first (Ctrl+Z removes the edits now)"));
+								return 0;
+							}
+							boolean had = Sessions.deleteHere(mc);
+							ctx.getSource().sendFeedback(Component.literal(had ? "[Vire] Saved session forgotten; the next V starts from the real world"
+									: "[Vire] No saved session in this world"));
+							return 1;
+						}))
 						.then(ClientCommands.literal("status").executes(ctx -> {
 							ctx.getSource().sendFeedback(Component.literal(status()));
 							return 1;
@@ -208,6 +247,8 @@ public final class VireClient implements ClientModInitializer {
 		while (toggleKey.consumeClick()) {
 			if (mc.player != null && mc.gui.screen() == null) {
 				VireMode.toggle(mc);
+			} else {
+				LOG.info("[Vire] toggle key ignored: screen {}", mc.gui.screen());
 			}
 		}
 		VireSession s = VireMode.session();
@@ -261,6 +302,12 @@ public final class VireClient implements ClientModInitializer {
 				VireMode.hint(mc, "Flow arrows " + (config.showArrows ? "on" : "off"));
 			}
 		}
+		while (helpKey.consumeClick()) {
+			if (VireMode.active()) {
+				config.showKeys = !config.showKeys;
+				save();
+			}
+		}
 		while (bomKey.consumeClick()) {
 			if (GhostLayer.design() != null && !VireMode.active()) {
 				config.showBom = !config.showBom;
@@ -269,6 +316,7 @@ public final class VireClient implements ClientModInitializer {
 		}
 		VireMode.tick(mc);
 		GhostLayer.tick(mc);
+		Sessions.tick(mc);
 		RegionOverlay.tick();
 		SignalOverlay.tick();
 		SelfTest.tick(mc);
@@ -324,13 +372,41 @@ public final class VireClient implements ClientModInitializer {
 		return bomKey;
 	}
 
+	public static KeyMapping helpKey() {
+		return helpKey;
+	}
+
+	/** Lines of {@code /vire help}, built from the keys as bound now. */
+	static List<String> help() {
+		net.minecraft.client.Options o = Minecraft.getInstance().options;
+		return List.of(
+				"§3[Vire]§b Redstone sandbox. " + keyName(toggleKey) + " enters/leaves Vire Mode (stand still and safe: your body stays here).",
+				"§bIn Vire Mode:",
+				"  §f" + keyName(pauseKey) + "§7 run/pause  §f" + keyName(stepKey) + " " + keyName(stepManyKey) + "§7 step 1/10 ticks  §f"
+						+ keyName(slowerKey) + " " + keyName(fasterKey) + "§7 speed  §f" + keyName(resetKey) + "§7 reset circuit",
+				"  §f" + keyName(o.keyUse) + "§7 place, or flip levers/buttons/doors and change repeaters/comparators  §fCtrl+" + keyName(o.keyUse)
+						+ "§7 place against them",
+				"  §f" + keyName(o.keyAttack) + "§7 break  §f" + keyName(o.keyPickItem) + "§7 pick  §f" + keyName(o.keyInventory)
+						+ "§7 blocks  §fCtrl+Z/Y§7 undo/redo",
+				"  §f" + keyName(markInKey) + " " + keyName(markOutKey) + "§7 mark delay input/output  §f" + keyName(arrowsKey) + "§7 arrows  §f"
+						+ keyName(helpKey) + "§7 keys panel",
+				"§bLeaving keeps your session: V in the same region continues it. Then keep the design as ghost, save, export or discard.",
+				"§bCommands:§7 /vire size <16..64>, /vire ghost <name>|off, /vire designs, /vire bom, /vire export <name>, /vire discard, /vire status");
+	}
+
 	public static KeyMapping arrowsKey() {
 		return arrowsKey;
 	}
 
 	/** Short name of the key a mapping is bound to, for the HUD help line. */
 	public static String keyName(KeyMapping k) {
-		return k.getTranslatedKeyMessage().getString();
+		// mouse buttons get short names; everything else as the Controls screen shows it
+		return switch (KeyMappingHelper.getBoundKeyOf(k).getName()) {
+			case "key.mouse.left" -> "LMB";
+			case "key.mouse.right" -> "RMB";
+			case "key.mouse.middle" -> "MMB";
+			default -> k.getTranslatedKeyMessage().getString();
+		};
 	}
 
 	public static String status() {

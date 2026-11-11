@@ -47,7 +47,11 @@ public final class ExitScreen extends Screen {
 	/** Applies a choice; public for the self-test. */
 	public static Design apply(Design design, String name, Choice choice) {
 		return switch (choice) {
-			case DISCARD -> null;
+			case DISCARD -> {
+				// the saved session would bring the edits back on the next V here
+				dev.vire.client.mode.Sessions.delete(design.world());
+				yield null;
+			}
 			case AUTOSAVE -> Designs.save(design, DesignStore.AUTOSAVE);
 			case SAVE -> Designs.save(design, name);
 			case EXPORT -> {
@@ -76,7 +80,7 @@ public final class ExitScreen extends Screen {
 						: "Design " + saved.name() + " saved; " + saved.entries().size() + " blocks to build. B shows the materials.";
 				case SAVE -> saved == null ? "Could not save the design (see log)" : "Design " + saved.name() + " saved.";
 				case EXPORT -> saved == null ? "Could not save the design (see log)" : "Design " + saved.name() + " saved.";
-				default -> "Design discarded.";
+				default -> "Design discarded (the next V starts from the real world).";
 			};
 			minecraft.player.sendSystemMessage(Component.literal("[Vire] ").withStyle(ChatFormatting.DARK_AQUA)
 					.append(Component.literal(msg).withStyle(ChatFormatting.AQUA)));

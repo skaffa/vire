@@ -43,21 +43,32 @@ need, or a `.litematic` file for Litematica.
 |---|---|
 | `V` | Enter / leave Vire Mode |
 | WASD, Space, Shift, Ctrl | Fly the camera (Ctrl = faster) |
-| Right / left click | Place / break (hold to repeat) |
+| Right click | Place (hold to repeat); on a lever, button, door, trapdoor or gate: flip it; on a repeater, comparator, note block or daylight detector: change its setting |
+| Ctrl + right click | Place against a lever, repeater… instead of using it |
+| Left click | Break (hold to repeat) |
 | Middle click | Pick block into the virtual hotbar |
 | `E` | Block palette (click = selected slot, hover + 1–9 = that slot) |
 | Ctrl+Z / Ctrl+Y | Undo / redo (rebuilds the circuit, paused) |
 | `K` | Run / pause the circuit (starts paused) |
-| `.` / `,` | Step 1 / 10 game ticks |
+| `,` / `.` | Step 1 / 10 game ticks |
 | `[` / `]` | Slower / faster (1–100 TPS) |
-| `R` | Reset the circuit to your design |
+| `R` | Reset the circuit to your design (levers and buttons go back to how you placed them) |
 | `N` / `M` | Mark the block you look at as delay input / output (again = unmark) |
 | `J` | Flow arrows on / off |
+| `H` | Keys panel on / off |
 | `B` | Materials panel on / off (when a ghost is shown) |
 
 All keys can be changed in Controls → Vire.
 
+The values panel (top left) shows the clock, speed, tick, edits, the delay meter, the block you look at
+and your body's health. The crosshair and the block outline turn green on something right click
+flips or changes, and red outside the region.
+
 ## Leaving Vire Mode
+
+Your Vire session is kept per world: press V again inside the same region and you continue where you
+left off (Ctrl+Z removes the continued edits in one step; `/vire discard` forgets the session). It is
+also written every few seconds, so after a crash or kick the next join asks whether to restore it.
 
 When you leave with changes, a dialog asks for a name:
 
@@ -65,7 +76,7 @@ When you leave with changes, a dialog asks for a name:
 - **Save only**: store it in `config/vire/designs/<name>.json`.
 - **Export .litematic**: write `schematics/vire/<name>.litematic` (and place it in Litematica when
   it is installed).
-- **Discard**: drop it. Escape keeps it as `_autosave`.
+- **Discard**: drop it, and the saved session with it. Escape keeps it as `_autosave`.
 
 A design shows only on the server and in the dimension where you made it.
 
@@ -79,6 +90,8 @@ A design shows only on the server and in the dimension where you made it.
 | `/vire designs` | List the saved designs |
 | `/vire bom` | Materials for the ghost, in chat |
 | `/vire export <name>` | Export a saved design as `.litematic` |
+| `/vire discard` | Forget the saved session of this world (the next V starts from the real world) |
+| `/vire help` | Keys and commands in chat |
 | `/vire status` | Sandbox state, tick, memory |
 
 ## Good to know
@@ -88,7 +101,8 @@ A design shows only on the server and in the dimension where you made it.
 - The copy only knows what your client knows: container contents you have not opened and some block
   entity data are not there.
 - The region is a 32-block cube around you by default (16–64 with `/vire size`).
-- Everything Vire writes lives in `config/vire/`; `.litematic` exports go to `schematics/vire/` so
+- Commands you type in Vire Mode go to the real server and act on your real body (`/kill` kills it).
+- Everything Vire writes lives in `config/vire/` (designs in `designs/`, sessions in `sessions/`); `.litematic` exports go to `schematics/vire/` so
   Litematica finds them.
 - Litematica Printer 3.2.3 can print only part of an exported design: in our test it placed pistons
   and stairs, placed an observer the wrong way and skipped repeaters, comparators and hoppers.

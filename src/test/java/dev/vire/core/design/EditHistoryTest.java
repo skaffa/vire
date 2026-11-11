@@ -65,6 +65,22 @@ class EditHistoryTest {
 	}
 
 	@Test
+	void stepsPastTheLimitStayInChanges() {
+		EditHistory<String> h = new EditHistory<>(2);
+		for (int i = 0; i < 4; i++) {
+			h.begin();
+			h.add(7, "s" + i, "s" + (i + 1));
+			h.end();
+		}
+		assertEquals(2, h.undoSize());
+		List<EditHistory.Change<String>> all = h.changes();
+		// the two evicted steps fold into one change of position 7 (s0 -> s2), then the two undoable steps
+		assertEquals(new EditHistory.Change<>(7, "s0", "s2"), all.get(0));
+		assertEquals(3, all.size());
+		assertEquals("s4", all.get(2).after());
+	}
+
+	@Test
 	void misuseThrows() {
 		EditHistory<String> h = new EditHistory<>(1);
 		assertThrows(IllegalStateException.class, () -> h.add(1, "a", "b"));

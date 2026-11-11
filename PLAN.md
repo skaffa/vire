@@ -352,7 +352,7 @@ Drawn with vanilla `Gizmos` from the client tick, as in Gauge and Ortho.
 - **Region box** and **unknown block markers** (§5.4).
 - **Control bar** at the top (HUD, not a screen, so the game stays playable):
   `[⏸] [⏭ 1] [⏭ N] [▶]  20 TPS  tick 1234  |  Reset  Undo  Mark in/out  |  Exit`.
-  Keys: `V` exit, `K` pause/play (`P` is vanilla), `.` step 1, `,` step N, `[` `]` speed, `N` / `M`
+  Keys: `V` exit, `K` pause/play (`P` is vanilla), `,` step 1, `.` step N, `[` `]` speed, `N` / `M`
   mark in / out, `J` arrows. All rebindable.
 
 ---
@@ -522,7 +522,7 @@ Each milestone ends with a build that runs.
   come back as `MirrorBatch`es (`ServerChunkCache.blockChanged` + `ServerLevel.doBlockEvent`
   mixins, flushed at the end of each sandbox tick) and are written into the client level.
   Undo/redo/reset rebuild the sandbox from snapshot + edit list (§7). Keys: `K` run/pause
-  (`P`/`O`/`G` are vanilla), `.` step 1, `,` step 10, `[` `]` speed, `R` reset.
+  (`P`/`O`/`G` are vanilla), `,` step 1, `.` step 10, `[` `]` speed, `R` reset.
   Self-test (`-Pselftest=quit`) PASS with 42 checks: copy equals the real world, edits/undo/redo,
   repeater on after exactly 2 gt and off after 2 gt with the lamp 4 gt later (through the real
   key path), run/pause/speed, piston extends and pushes via mirrored block events, reset,
