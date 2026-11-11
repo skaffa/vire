@@ -7,8 +7,10 @@ you. Fly a free camera, place and break any block, and run the circuit with exac
 redstone (pause, step, speed control). The server never sees it. When you leave, the design
 becomes a ghost overlay with a bill of materials, or a `.litematic` file for Litematica.
 
-**Status:** in development. M1 (Vire Mode, free camera, isolation) and the core of M2 (a private
-sandbox server with exact vanilla redstone, pause/step/speed) are done. See [PLAN.md](PLAN.md).
+**Status:** in development. M1 (Vire Mode, free camera, isolation) and M2 (a private sandbox
+server with exact vanilla redstone: pause/step/speed, pistons, falling blocks, TNT, items) are
+done. A test kit checks the sandbox against a real server tick by tick. Next: M3 signal overlays.
+See [PLAN.md](PLAN.md).
 
 ### Vire Mode
 
@@ -38,8 +40,10 @@ Vire does not hide itself.
 ## Development
 
 `./gradlew runClient -Pselftest=quit --args="--username VireTester --quickPlayMultiplayer 127.0.0.1:25565"`
-runs the scripted M1 acceptance test against the local test server (`./gradlew runServer`,
-`VireTester` must be op). `-Ppacketlog` logs every packet sent while Vire Mode is on.
+runs the scripted acceptance test against the local test server (`./gradlew runServer`,
+`VireTester` must be op). Other modes: `-Pselftest=kit` (sandbox vs real server, tick by tick),
+`-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
+packet sent while Vire Mode is on.
 
 ## Files
 

@@ -35,6 +35,7 @@ public final class ShadowRegion<S, B> {
 	private final Map<Long, S> virtual = new HashMap<>();
 	private final LinkedHashMap<Long, B> pendingBlockEntityData = new LinkedHashMap<>();
 	private int interceptedUpdates;
+	private final java.util.Set<Long> serverUpdated = new java.util.HashSet<>();
 
 	public ShadowRegion(Box box) {
 		this.box = Objects.requireNonNull(box);
@@ -72,8 +73,14 @@ public final class ShadowRegion<S, B> {
 			return false;
 		}
 		real.put(key, state);
+		serverUpdated.add(key);
 		interceptedUpdates++;
 		return true;
+	}
+
+	/** Positions the server changed while Vire Mode was on (their real state is in {@link #restoreList()}). */
+	public java.util.Set<Long> serverUpdatedKeys() {
+		return Collections.unmodifiableSet(serverUpdated);
 	}
 
 	/** Same as {@link #onServerUpdate} for block entity data; the latest packet per position wins. */

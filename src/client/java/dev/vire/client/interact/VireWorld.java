@@ -4,6 +4,7 @@ import dev.vire.client.VireClient;
 import dev.vire.client.mixin.BlockItemInvoker;
 import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
+import dev.vire.client.sandbox.EntityMirror;
 import dev.vire.client.sandbox.MirrorBatch;
 import dev.vire.client.sandbox.Sandbox;
 import dev.vire.client.sandbox.SandboxWorld;
@@ -101,7 +102,7 @@ public final class VireWorld {
 			s.frozen = b.frozen();
 			s.tickRate = b.tickRate();
 			s.sandboxTick = b.tick();
-			s.loaded = true;
+			s.loaded = b.ready();
 			recording = true;
 			try {
 				// like vanilla: block events (piston starts) first, then the block updates of that tick
@@ -110,6 +111,7 @@ public final class VireWorld {
 						s.level.blockEvent(e.pos(), e.block(), e.paramA(), e.paramB());
 					}
 				}
+				EntityMirror.apply(s.level, b.entities());
 				long[] keys = b.keys();
 				BlockState[] states = b.states();
 				for (int i = 0; i < keys.length; i++) {

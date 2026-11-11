@@ -72,6 +72,9 @@ public final class SelfTest {
 	private static long tickMark;
 	private static final List<String> offSteps = new ArrayList<>();
 	private static int waited;
+	private static BlockPos sandPos;
+	private static final Map<BlockPos, BlockState> realChanges = new HashMap<>();
+	private static long heapStart;
 
 	private SelfTest() {
 	}
@@ -81,6 +84,14 @@ public final class SelfTest {
 			return;
 		}
 		VireClient.LOG.info("[selftest] enabled ({})", MODE);
+		if (MODE.equals("cycles")) {
+			cycleSteps();
+			return;
+		}
+		if (MODE.equals("kit")) {
+			kitSteps();
+			return;
+		}
 		if (MODE.equals("spike")) {
 			// M2 spike only: run it once in the world, wait for it, then quit
 			step(0, "spike", dev.vire.client.sandbox.SandboxSpike::start);
@@ -120,7 +131,18 @@ public final class SelfTest {
 		waitFor("sandbox loaded", () -> VireMode.active() && VireMode.session().loaded, 600);
 		step(5, "sandbox copy matches the real world", mc -> {
 			check(VireMode.session().box.equals(box), "region box as expected");
-			check(countWrong(mc, false) == 0, "virtual view equals the real snapshot after copy + re-settle");
+			// against Vire's own snapshot (taken at enter): the real world may change between our snapshot and enter
+			VireSession vs = VireMode.session();
+			int bad = 0;
+			for (BlockPos p : snapshot.keySet()) {
+				BlockState want = vs.snapshot.getOrDefault(VireWorld.key(p), Blocks.AIR.defaultBlockState());
+				if (!mc.level.getBlockState(p).equals(want)) {
+					if (bad++ < 5) {
+						VireClient.LOG.warn("[selftest] copy {} expected {} got {}", p, want, mc.level.getBlockState(p));
+					}
+				}
+			}
+			check(bad == 0, "virtual view equals the copied real region after copy + re-settle (" + bad + " differ)");
 			check(VireMode.session().frozen, "sandbox starts paused");
 		});
 		// Edits travel client -> sandbox -> client, and the client may run several ticks per frame after a
@@ -254,6 +276,21 @@ public final class SelfTest {
 		});
 		waitFor("reset rebuilds the design, paused, piston retracted",
 				() -> VireMode.session().frozen && is(pistonPos.above(), Blocks.SMOOTH_STONE), 200);
+		step(1, "sand in the air", mc -> {
+			sandPos = BlockPos.containing(body).north(6).above(5);
+			VireWorld.placeState(sandPos, Blocks.SAND.defaultBlockState());
+		});
+		waitFor("sand placed", () -> is(sandPos, Blocks.SAND), 100);
+		stepOnce();
+		stepOnce();
+		stepOnce();
+		waitFor("falling sand is shown as an entity", () -> dev.vire.client.sandbox.EntityMirror.count() == 1
+				&& !Minecraft.getInstance().level.getEntitiesOfClass(net.minecraft.world.entity.item.FallingBlockEntity.class,
+						new net.minecraft.world.phys.AABB(sandPos).inflate(3)).isEmpty(), 100);
+		step(1, "run", mc -> click(VireClient.pauseKey()));
+		waitFor("sand landed, entity gone", () -> is(sandPos.below(5), Blocks.SAND) && dev.vire.client.sandbox.EntityMirror.count() == 0, 200);
+		step(1, "pause", mc -> click(VireClient.pauseKey()));
+		waitFor("paused", () -> VireMode.session().frozen, 100);
 		step(5, "real server changes", mc -> {
 			mc.player.connection.sendCommand("setblock " + p1.getX() + " " + p1.getY() + " " + p1.getZ() + " minecraft:gold_block");
 			mc.player.connection.sendCommand("setblock " + p2.getX() + " " + p2.getY() + " " + p2.getZ() + " minecraft:gold_block");
@@ -264,6 +301,12 @@ public final class SelfTest {
 			check(mc.level.getBlockState(p2).equals(p2Before), "real change at p2 not shown while active");
 			check(VireMode.session().shadow.interceptedUpdates() >= 2, "server updates intercepted: " + VireMode.session().shadow.interceptedUpdates());
 			check(PacketGuard.dropped() == 0, "no packets reached the safety net: " + PacketGuard.droppedByType());
+			// whatever the server changed meanwhile (our /setblocks, but also e.g. grass decaying) must win on exit
+			VireSession vs = VireMode.session();
+			realChanges.clear();
+			for (long k : vs.shadow.serverUpdatedKeys()) {
+				realChanges.put(VireWorld.pos(k), vs.shadow.restoreList().get(k));
+			}
 			click(VireClient.toggleKey());
 		});
 		waitFor("Vire Mode left", () -> !VireMode.active(), 100);
@@ -322,6 +365,126 @@ public final class SelfTest {
 		}
 	}
 
+	private static final List<List<Map<String, String>>> REAL = new ArrayList<>();
+	private static boolean markerGold;
+
+	/** Circuit test kit (PLAN.md §17): real server vs sandbox, tick by tick. */
+	private static void kitSteps() {
+		step(0, "go near the kit", mc -> {
+			mc.player.connection.sendCommand("tp @s 395 -60 395");
+			dev.vire.client.sandbox.Sandbox.ensureStarted();
+		});
+		waitFor("sandbox ready", dev.vire.client.sandbox.Sandbox::ready, 2400);
+		step(40, "start the sandbox side", mc -> KitTest.startSandboxSide(dev.vire.client.sandbox.Sandbox.server()));
+		List<KitTest.Circuit> circuits = KitTest.circuits();
+		for (int i = 0; i < circuits.size(); i++) {
+			KitTest.Circuit c = circuits.get(i);
+			step(1, "kit clear: " + c.name(), mc -> {
+				for (String cmd : c.clear()) {
+					mc.player.connection.sendCommand(cmd);
+				}
+			});
+			step(30, "kit build: " + c.name(), mc -> {
+				REAL.add(new ArrayList<>());
+				for (String cmd : c.setup()) {
+					mc.player.connection.sendCommand(cmd);
+				}
+				toggleMarker(mc, c);
+			});
+			waitFor("marker", () -> markerArrived(c), 200);
+			step(1, "record", mc -> REAL.getLast().add(c.read(mc.level)));
+			for (int k = 0; k < KitTest.STEPS; k++) {
+				step(1, "tick step", mc -> {
+					mc.player.connection.sendCommand("tick step 1");
+					toggleMarker(mc, c);
+				});
+				waitFor("marker", () -> markerArrived(c), 200);
+				step(1, "record", mc -> REAL.getLast().add(c.read(mc.level)));
+			}
+			step(1, "unfreeze", mc -> mc.player.connection.sendCommand("tick unfreeze"));
+		}
+		waitFor("sandbox side done", () -> KitTest.SANDBOX_RESULT.get() != null, 2400);
+		step(1, "compare", mc -> {
+			List<List<Map<String, String>>> sb = KitTest.SANDBOX_RESULT.get();
+			check(sb.size() == circuits.size(), "sandbox ran every circuit (" + sb.size() + ")");
+			for (int i = 0; i < Math.min(sb.size(), circuits.size()); i++) {
+				KitTest.Circuit c = circuits.get(i);
+				String d = KitTest.diff(c, REAL.get(i), sb.get(i));
+				check(d == null, d == null ? c.name() + ": identical for " + KitTest.STEPS + " game ticks" : d);
+				// show that something happened, so "identical" is not "both did nothing"
+				long changes = 0;
+				for (int t = 1; t < REAL.get(i).size(); t++) {
+					if (!REAL.get(i).get(t).equals(REAL.get(i).get(t - 1))) {
+						changes++;
+					}
+				}
+				VireClient.LOG.info("[selftest] kit {}: state changed in {} of {} ticks", c.name(), changes, KitTest.STEPS);
+				check(changes > 0, c.name() + " actually does something");
+			}
+		});
+		step(1, "report", SelfTest::report);
+	}
+
+	/** Leak check: 10 enter/exit cycles, then 3 sandbox restarts; heap must not keep growing. */
+	private static void cycleSteps() {
+		step(0, "quiet spot", mc -> {
+			mc.player.connection.sendCommand("tp @s 300 -60 300");
+			dev.vire.client.sandbox.Sandbox.ensureStarted();
+		});
+		waitFor("sandbox ready", dev.vire.client.sandbox.Sandbox::ready, 2400);
+		step(40, "heap at start", mc -> heapStart = heapMb());
+		for (int i = 0; i < 10; i++) {
+			step(1, "enter", mc -> click(VireClient.toggleKey()));
+			waitFor("loaded", () -> VireMode.active() && VireMode.session().loaded, 400);
+			step(5, "exit", mc -> click(VireClient.toggleKey()));
+			waitFor("left", () -> !VireMode.active(), 100);
+		}
+		step(40, "heap after 10 sessions", mc -> {
+			long h = heapMb();
+			VireClient.LOG.info("[selftest] heap {} MB -> {} MB after 10 enter/exit cycles", heapStart, h);
+			check(h - heapStart < 60, "10 enter/exit cycles leave the heap within 60 MB (" + (h - heapStart) + " MB)");
+		});
+		for (int i = 0; i < 3; i++) {
+			step(1, "stop sandbox", mc -> dev.vire.client.sandbox.Sandbox.stop());
+			step(100, "start sandbox", mc -> dev.vire.client.sandbox.Sandbox.ensureStarted());
+			waitFor("sandbox ready again", dev.vire.client.sandbox.Sandbox::ready, 2400);
+		}
+		step(100, "heap after 3 restarts", mc -> {
+			long h = heapMb();
+			VireClient.LOG.info("[selftest] heap {} MB -> {} MB after 3 sandbox restarts", heapStart, h);
+			check(h - heapStart < 100, "3 sandbox restarts leave the heap within 100 MB (" + (h - heapStart) + " MB)");
+		});
+		step(1, "report", SelfTest::report);
+	}
+
+	private static long heapMb() {
+		System.gc();
+		Runtime rt = Runtime.getRuntime();
+		return (rt.totalMemory() - rt.freeMemory()) >> 20;
+	}
+
+	private static void toggleMarker(Minecraft mc, KitTest.Circuit c) {
+		markerGold = !markerGold;
+		BlockPos m = c.marker();
+		mc.player.connection.sendCommand("setblock " + m.getX() + " " + m.getY() + " " + m.getZ() + " minecraft:" + (markerGold ? "gold_block" : "iron_block"));
+	}
+
+	private static boolean markerArrived(KitTest.Circuit c) {
+		return is(c.marker(), markerGold ? Blocks.GOLD_BLOCK : Blocks.IRON_BLOCK);
+	}
+
+	private static void report(Minecraft mc) {
+		if (FAILURES.isEmpty()) {
+			VireClient.LOG.info("[selftest] VIRE SELFTEST PASS ({} steps)", STEPS.size());
+		} else {
+			VireClient.LOG.error("[selftest] VIRE SELFTEST FAIL: {}", FAILURES);
+		}
+		done = true;
+		if (!MODE.equals("run")) {
+			mc.stop();
+		}
+	}
+
 	/** Points the camera down at {@code target} and waits until the crosshair is on it. */
 	private static void aim(java.util.function.Supplier<BlockPos> target) {
 		step(1, "aim", mc -> aimDown(VireMode.session(), target.get()));
@@ -347,7 +510,8 @@ public final class SelfTest {
 		step(1, name, mc -> {
 			if (done.getAsBoolean()) {
 				waited = 0;
-				if (!name.equals("aimed") && !name.equals("stepped")) {
+				if (!name.equals("aimed") && !name.equals("stepped") && !name.equals("marker") && !name.equals("loaded")
+						&& !name.equals("left")) {
 					check(true, name);
 				}
 			} else if (++waited > maxTicks) {
@@ -374,7 +538,8 @@ public final class SelfTest {
 		int wrong = 0;
 		for (Map.Entry<BlockPos, BlockState> e : snapshot.entrySet()) {
 			BlockPos p = e.getKey();
-			BlockState want = gold && (p.equals(p1) || p.equals(p2)) ? Blocks.GOLD_BLOCK.defaultBlockState() : e.getValue();
+			BlockState want = gold && (p.equals(p1) || p.equals(p2)) ? Blocks.GOLD_BLOCK.defaultBlockState()
+					: gold && realChanges.containsKey(p) ? realChanges.get(p) : e.getValue();
 			BlockState got = mc.level.getBlockState(p);
 			if (!got.equals(want)) {
 				if (wrong < 10) {

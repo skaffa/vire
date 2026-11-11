@@ -3,6 +3,7 @@ package dev.vire.client.mode;
 import dev.vire.client.VireClient;
 import dev.vire.client.camera.FreeCamera;
 import dev.vire.client.interact.VireWorld;
+import dev.vire.client.sandbox.EntityMirror;
 import dev.vire.client.sandbox.Sandbox;
 import dev.vire.core.region.Box;
 
@@ -176,6 +177,7 @@ public final class VireMode {
 		session = null; // off first: restore writes must not be intercepted
 		VireWorld.resetRecording();
 		Sandbox.unload();
+		EntityMirror.clear();
 		if (!VireClient.config.keepWarm) {
 			Sandbox.stop();
 		}

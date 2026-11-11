@@ -58,6 +58,11 @@ public final class Sandbox {
 		t.start();
 	}
 
+	/** The running sandbox server (dev tools only), or {@code null}. */
+	public static SandboxServer server() {
+		return server;
+	}
+
 	public static boolean ready() {
 		SandboxServer s = server;
 		return s != null && s.isReady() && s.isRunning();

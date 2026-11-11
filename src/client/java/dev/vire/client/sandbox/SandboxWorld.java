@@ -15,7 +15,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 
@@ -39,6 +42,7 @@ public final class SandboxWorld {
 	private static final int RAW = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SKIP_ON_PLACE;
 
 	private static int generation = -1;
+	private static boolean hadEntities;
 	/** Blocks the last re-settle changed relative to the client's view (for the log and status). */
 	public static volatile int lastSettleChanges;
 	private static Box box;
@@ -66,17 +70,30 @@ public final class SandboxWorld {
 
 	/** End of every sandbox tick (also while paused): send what changed. */
 	public static void flush(SandboxServer server) {
-		if (generation < 0 || (CHANGED.isEmpty() && EVENTS.isEmpty() && server.getTickCount() % 4 != 0)) {
-			return; // nothing new; still send the clock status every 4 ticks
+		if (generation < 0 || box == null) {
+			return;
 		}
 		ServerLevel level = server.overworld();
+		List<EntitySnap> entities = new ArrayList<>();
+		Box b = box.expand(8);
+		for (Entity e : level.getEntitiesOfClass(Entity.class, new AABB(b.minX(), b.minY(), b.minZ(), b.maxX() + 1, b.maxY() + 1, b.maxZ() + 1),
+				EntitySnap::tracked)) {
+			entities.add(EntitySnap.of(e));
+		}
+		boolean entitiesMatter = !entities.isEmpty() || hadEntities;
+		hadEntities = !entities.isEmpty();
+		if (CHANGED.isEmpty() && EVENTS.isEmpty() && !entitiesMatter && server.getTickCount() % 4 != 0) {
+			return; // nothing new; still send the clock status every 4 ticks
+		}
 		long[] keys = CHANGED.toLongArray();
 		BlockState[] states = new BlockState[keys.length];
 		for (int i = 0; i < keys.length; i++) {
 			states[i] = level.getBlockState(Sandbox.pos(keys[i]));
 		}
 		var rate = server.tickRateManager();
-		Sandbox.OUT.add(new MirrorBatch(generation, List.copyOf(EVENTS), keys, states, rate.isFrozen(), rate.tickrate(),
+		Box l = loaded;
+		boolean ready = l != null && allTicking(level, l.minX() >> 4, l.minZ() >> 4, l.maxX() >> 4, l.maxZ() >> 4);
+		Sandbox.OUT.add(new MirrorBatch(generation, List.copyOf(EVENTS), keys, states, entities, ready, rate.isFrozen(), rate.tickrate(),
 				level.getGameTime()));
 		CHANGED.clear();
 		EVENTS.clear();
@@ -89,17 +106,45 @@ public final class SandboxWorld {
 		ServerLevel level = server.overworld();
 		long t0 = System.nanoTime();
 		server.tickRateManager().setFrozen(true);
-		clear(level);
-		box = region;
 		Box outer = region.expand(1);
+		boolean sameArea = outer.equals(loaded);
+		if (sameArea) {
+			// reset/undo/redo: only stop what is pending; the copy below rewrites just the blocks that differ
+			BoundingBox bb = new BoundingBox(outer.minX(), outer.minY(), outer.minZ(), outer.maxX(), outer.maxY(), outer.maxZ());
+			level.getBlockTicks().clearArea(bb);
+			level.getFluidTicks().clearArea(bb);
+			level.clearBlockEvents(bb);
+			discardEntities(level, outer);
+			CHANGED.clear();
+			EVENTS.clear();
+		} else {
+			clear(level);
+		}
+		long tClear = System.nanoTime();
+		box = region;
 		loaded = outer;
 		setForced(level, outer, true);
 
 		// 1. the copy, raw (the snapshot includes a 1-block border for context; only the box is mirrored)
-		for (Map.Entry<Long, BlockState> e : snapshot.entrySet()) {
-			BlockPos p = Sandbox.pos(e.getKey());
-			if (!level.isOutsideBuildHeight(p)) {
-				level.setBlock(p, e.getValue(), RAW);
+		if (sameArea) {
+			BlockState air = Blocks.AIR.defaultBlockState();
+			for (int x = outer.minX(); x <= outer.maxX(); x++) {
+				for (int y = outer.minY(); y <= outer.maxY(); y++) {
+					for (int z = outer.minZ(); z <= outer.maxZ(); z++) {
+						BlockPos p = new BlockPos(x, y, z);
+						BlockState want = snapshot.getOrDefault(PosKey.pack(x, y, z), air);
+						if (!level.isOutsideBuildHeight(p) && level.getBlockState(p) != want) {
+							level.setBlock(p, want, RAW);
+						}
+					}
+				}
+			}
+		} else {
+			for (Map.Entry<Long, BlockState> e : snapshot.entrySet()) {
+				BlockPos p = Sandbox.pos(e.getKey());
+				if (!level.isOutsideBuildHeight(p)) {
+					level.setBlock(p, e.getValue(), RAW);
+				}
 			}
 		}
 		for (Map.Entry<Long, CompoundTag> e : blockEntities.entrySet()) {
@@ -112,6 +157,7 @@ public final class SandboxWorld {
 				}
 			}
 		}
+		long tCopy = System.nanoTime();
 		// 2. re-settle: every component re-reads its inputs, so power, comparators and pending
 		//    repeater ticks become consistent with what the client could see (PLAN.md §5.5)
 		int settled = 0;
@@ -127,6 +173,7 @@ public final class SandboxWorld {
 				}
 			}
 		}
+		long tSettle = System.nanoTime();
 		// how much the re-settle changed compared with what the client saw (logged; ideally 0 for a quiet area)
 		int changedBySettle = 0;
 		for (int x = region.minX(); x <= region.maxX(); x++) {
@@ -149,6 +196,7 @@ public final class SandboxWorld {
 		for (Edit edit : edits) {
 			apply(server, edit, false);
 		}
+		long tEdits = System.nanoTime();
 		generation = gen;
 		// everything in the box is "changed" for the mirror: the client may hold an older load
 		for (int x = region.minX(); x <= region.maxX(); x++) {
@@ -160,8 +208,10 @@ public final class SandboxWorld {
 		}
 		EVENTS.clear();
 		flush(server);
-		VireClient.LOG.info("[Vire] Sandbox load {}: {} blocks, {} re-settled, {} edits in {} ms", gen, snapshot.size(), settled,
-				edits.size(), (System.nanoTime() - t0) / 1_000_000);
+		long tEnd = System.nanoTime();
+		VireClient.LOG.info("[Vire] Sandbox load {}: {} blocks, {} re-settled, {} edits in {} ms (clear {}, copy {}, settle {}, edits {}, mirror {})",
+				gen, snapshot.size(), settled, edits.size(), (tEnd - t0) / 1_000_000, (tClear - t0) / 1_000_000, (tCopy - tClear) / 1_000_000,
+				(tSettle - tCopy) / 1_000_000, (tEdits - tSettle) / 1_000_000, (tEnd - tEdits) / 1_000_000);
 	}
 
 	static void unload(SandboxServer server) {
@@ -210,10 +260,38 @@ public final class SandboxWorld {
 				}
 			}
 		}
-		level.getBlockTicks().clearArea(new net.minecraft.world.level.levelgen.structure.BoundingBox(
-				old.minX(), old.minY(), old.minZ(), old.maxX(), old.maxY(), old.maxZ()));
+		discardEntities(level, old);
+		BoundingBox bb = new BoundingBox(old.minX(), old.minY(), old.minZ(), old.maxX(), old.maxY(), old.maxZ());
+		level.getBlockTicks().clearArea(bb);
+		level.getFluidTicks().clearArea(bb);
+		level.clearBlockEvents(bb);
 		setForced(level, old, false);
 		loaded = null;
+	}
+
+	private static void discardEntities(ServerLevel level, Box area) {
+		Box eb = area.expand(8);
+		for (Entity e : level.getEntitiesOfClass(Entity.class, new AABB(eb.minX(), eb.minY(), eb.minZ(), eb.maxX() + 1, eb.maxY() + 1, eb.maxZ() + 1),
+				e -> !(e instanceof net.minecraft.world.entity.player.Player))) {
+			e.discard();
+		}
+		hadEntities = false;
+	}
+
+	/**
+	 * Forced chunks only start ticking after the chunk system has processed their tickets (a few server
+	 * ticks, entity loading included); until then scheduled block ticks wait and a repeater would fire late.
+	 * The client treats the region as loaded only when this is true.
+	 */
+	public static boolean allTicking(ServerLevel level, int minCX, int minCZ, int maxCX, int maxCZ) {
+		for (int cx = minCX; cx <= maxCX; cx++) {
+			for (int cz = minCZ; cz <= maxCZ; cz++) {
+				if (!level.isPositionTickingWithEntitiesLoaded(ChunkPos.pack(cx, cz))) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	private static void setForced(ServerLevel level, Box b, boolean forced) {

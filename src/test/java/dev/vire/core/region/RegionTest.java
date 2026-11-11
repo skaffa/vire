@@ -112,6 +112,7 @@ class RegionTest {
 		assertEquals("gold", level.get(edited));
 		assertEquals("air", level.get(untouched));
 		assertEquals(2, r.interceptedUpdates());
+		assertEquals(java.util.Set.of(edited, untouched), r.serverUpdatedKeys());
 	}
 
 	@Test

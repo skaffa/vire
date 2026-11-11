@@ -526,9 +526,24 @@ Each milestone ends with a build that runs.
   repeater on after exactly 2 gt and off after 2 gt with the lamp 4 gt later (through the real
   key path), run/pause/speed, piston extends and pushes via mirrored block events, reset,
   plus all M1 isolation/restore checks.
-  **Still open in M2:** mirroring falling blocks, TNT and items (§5.6); the circuit test kit
-  compared tick-for-tick with a real singleplayer world; 10 enter/exit and sandbox restart
-  cycles for leaks; undo/redo latency (a full rebuild takes 0.3–0.7 s, the first load 2–3 s).
+- **M2 done 2026-11-11.**
+  - Entities: falling blocks, primed TNT and items are mirrored as client-only entities
+    (negative ids, `EntityMirror`); self-test: sand placed in the air shows as a falling entity,
+    lands, entity gone.
+  - Circuit test kit (`runClient -Pselftest=kit`, `KitTest`): the same `/setblock` commands run
+    on the real dedicated test server and in the sandbox, both `/tick freeze` + `/tick step 1`.
+    **Identical block states for 30 game ticks** in all 5 circuits: repeater chain 1-3-2,
+    observer clock, comparator subtract, quasi-connected piston (BUD) pushing sand, falling
+    sand + gravel. (Real side syncs on a marker block in the circuit's own chunk section; the area
+    is cleared while running first, so old scheduled ticks cannot fire into the new circuit.)
+  - Bug found by the kit: forced sandbox chunks tick only a few ticks after the ticket, so the
+    first scheduled ticks fired late. Now batches carry `ready` (all region chunks tick); the
+    client shows "loading…" and ignores controls until then.
+  - Leaks (`-Pselftest=cycles`): 10 enter/exit cycles +17 MB, 13 sandbox restarts in total +2 MB
+    against the start. No leak.
+  - Undo/redo/reset: same-area rebuild only rewrites blocks that differ from the snapshot:
+    **21–51 ms** (was 430–490 ms). The first load of a new area still takes 1–4 s (creating the
+    empty chunks); a later milestone can pre-create chunks around the player.
 - Then: region copy into the sandbox, re-settle, `ChangeCollector`, mirror, block events
   (pistons), play/pause/step/speed, reset, falling blocks/TNT/items mirror.
 - *Done when*: a test kit of circuits (§17) behaves the same in the sandbox as in a real

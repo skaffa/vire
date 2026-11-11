@@ -134,6 +134,9 @@ public final class VireClient implements ClientModInitializer {
 			}
 		}
 		VireSession s = VireMode.session();
+		if (s != null && !s.loaded) {
+			s = null; // controls wait until the sandbox region ticks (HUD shows "loading…")
+		}
 		while (pauseKey.consumeClick()) {
 			if (s != null) {
 				Sandbox.togglePause();
