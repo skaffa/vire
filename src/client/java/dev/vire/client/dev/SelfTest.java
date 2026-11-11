@@ -101,6 +101,10 @@ public final class SelfTest {
 			GhostTest.steps();
 			return;
 		}
+		if (MODE.equals("litematic")) {
+			LitematicSelfTest.steps(); // needs -Plitematica (Litematica, MaLiLib and the printer in libs/)
+			return;
+		}
 		// the other scripts leave Vire Mode with edits and go on at once; the exit dialog would block them
 		VireMode.openExitScreen = false;
 		if (MODE.equals("spike")) {

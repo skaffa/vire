@@ -155,6 +155,19 @@ public final class VireClient implements ClientModInitializer {
 													+ (d.world().equals(here) ? "" : " (made in " + d.world() + "; shows only there)")));
 											return 1;
 										})))
+						.then(ClientCommands.literal("export")
+								.then(ClientCommands.argument("name", StringArgumentType.word())
+										.suggests((ctx, b) -> SharedSuggestionProvider.suggest(Designs.names(), b))
+										.executes(ctx -> {
+											String name = StringArgumentType.getString(ctx, "name");
+											Design d = Designs.load(name);
+											if (d == null) {
+												ctx.getSource().sendError(Component.literal("[Vire] No design " + name + " (see /vire designs)"));
+												return 0;
+											}
+											Minecraft.getInstance().execute(() -> dev.vire.client.design.LitematicExport.exportAndTell(Minecraft.getInstance(), d));
+											return 1;
+										})))
 						.then(ClientCommands.literal("designs").executes(ctx -> {
 							List<String> names = Designs.names();
 							ctx.getSource().sendFeedback(Component.literal(names.isEmpty() ? "[Vire] No saved designs"

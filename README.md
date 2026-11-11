@@ -43,7 +43,12 @@ a red box, the right block in the wrong state a yellow box with what is expected
 expected`). The panel on the left lists the materials still needed against your inventory
 (inventory only, no chests). When every block matches, a toast says the design is complete.
 
-Commands: `/vire ghost <name>` / `/vire ghost off`, `/vire designs`, `/vire bom`, `/vire size <16..64>`,
+**Export .litematic** (in the dialog, or `/vire export <name>`) writes
+`schematics/vire/<name>.litematic`, cut to the box around the design; blocks in that box that are
+not part of the design are written as the world shows them now, so Litematica sees them as correct.
+With Litematica installed, the schematic is also loaded and placed at its real position.
+
+Commands: `/vire ghost <name>` / `/vire ghost off`, `/vire designs`, `/vire bom`, `/vire export <name>`, `/vire size <16..64>`,
 `/vire status`.
 
 Commands: `/vire`, `/vire size <16..64>`, `/vire status`, `/vire spike` (sandbox self-check).
@@ -61,7 +66,7 @@ Vire does not hide itself.
 `./gradlew runClient -Pselftest=quit --args="--username VireTester --quickPlayMultiplayer 127.0.0.1:25565"`
 runs the scripted acceptance test against the local test server (`./gradlew runServer`,
 `VireTester` must be op). Other modes: `-Pselftest=kit` (sandbox vs real server, tick by tick),
-`-Pselftest=probe` (delay tracker and frequency meter), `-Pselftest=ghost` (design → ghost → build it in survival), `-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
+`-Pselftest=probe` (delay tracker and frequency meter), `-Pselftest=ghost` (design → ghost → build it in survival), `-Plitematica -Pselftest=litematic` (export → Litematica; needs the Litematica, MaLiLib and Litematica Printer jars from Modrinth in `libs/`), `-Pselftest=cycles` (leak check), `-Pselftest=spike` (sandbox boot cost). `-Ppacketlog` logs every
 packet sent while Vire Mode is on.
 
 ## Files

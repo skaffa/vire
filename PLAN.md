@@ -599,6 +599,24 @@ Each milestone ends with a build that runs.
 - *Done when*: the exported file loads in Litematica 0.29.1 with correct rotations, and
   Litematica Printer 3.2.x prints it in survival on the test server.
 
+- **M5 done 2026-11-11 (printer part not met).** Core `Nbt` writer (golden bytes), `BitPacker`
+  (Litematica's packing, entries spanning longs; palette sizes 1/2/3/17/300), `LitematicWriter`
+  (Version 7 / SubVersion 1, read from Litematica 0.29.1's `LitematicaSchematic`: same as it writes).
+  Client `LitematicExport` (dialog button + `/vire export`, file `schematics/vire/<name>.litematic`,
+  box of the design, other positions = what the world shows now) and `LitematicaHook` (compiled
+  against `libs/` jars, only loaded with Litematica: `createFromFile` → `SchematicHolder` →
+  `SchematicPlacement.createFor` at the design corner, replaces a placement of the same name).
+  Self-test `-Plitematica -Pselftest=litematic` PASS: 6 rotated parts (observer north, repeater
+  south delay 3, comparator west subtract, sticky piston up, stairs east, hopper north) exported;
+  **Litematica 0.29.1 reads all 6 states back exactly** and the placement sits at the design's corner.
+  **Litematica Printer 3.2.3** on the survival test server builds only the piston and the stairs:
+  it places the observer facing east (its debug log shows the yaw for north sent with the click, but
+  the server still had the previous yaw) and never runs a guide for the repeater, comparator or
+  hopper (`PropertySpecificGuesserGuide`). The printer reads the placement's states through
+  Litematica, which reads them back exactly, so a Litematica-made schematic of the same blocks would
+  give the printer the same input: a printer limitation, not the file. Re-check with a newer
+  printer; until then the acceptance line "the printer prints it" is not met.
+
 **M6 — Release 0.1**
 - Polish, README with screenshots and the "body stays in the world" warning, icon, Modrinth
   page (ask first), changelog. Tag `0.1.0+26.3`.

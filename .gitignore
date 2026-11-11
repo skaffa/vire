@@ -44,3 +44,4 @@ run-server/
 
 # logs written by test runs
 logs/
+libs/

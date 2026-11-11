@@ -38,14 +38,11 @@ public final class ExitScreen extends Screen {
 		int bw = (w - 6) / 2;
 		addRenderableWidget(Button.builder(Component.literal("Keep as ghost"), b -> decide(Choice.GHOST)).bounds(x, y + 28, bw, 20).build());
 		addRenderableWidget(Button.builder(Component.literal("Save only"), b -> decide(Choice.SAVE)).bounds(x + bw + 6, y + 28, bw, 20).build());
-		Button export = Button.builder(Component.literal("Export .litematic (soon)"), b -> {
-		}).bounds(x, y + 52, bw, 20).build();
-		export.active = false;
-		addRenderableWidget(export);
+		addRenderableWidget(Button.builder(Component.literal("Export .litematic"), b -> decide(Choice.EXPORT)).bounds(x, y + 52, bw, 20).build());
 		addRenderableWidget(Button.builder(Component.literal("Discard"), b -> decide(Choice.DISCARD)).bounds(x + bw + 6, y + 52, bw, 20).build());
 	}
 
-	public enum Choice { GHOST, SAVE, DISCARD, AUTOSAVE }
+	public enum Choice { GHOST, SAVE, EXPORT, DISCARD, AUTOSAVE }
 
 	/** Applies a choice; public for the self-test. */
 	public static Design apply(Design design, String name, Choice choice) {
@@ -53,6 +50,13 @@ public final class ExitScreen extends Screen {
 			case DISCARD -> null;
 			case AUTOSAVE -> Designs.save(design, DesignStore.AUTOSAVE);
 			case SAVE -> Designs.save(design, name);
+			case EXPORT -> {
+				Design saved = Designs.save(design, name);
+				if (saved != null) {
+					LitematicExport.exportAndTell(net.minecraft.client.Minecraft.getInstance(), saved);
+				}
+				yield saved;
+			}
 			case GHOST -> {
 				Design saved = Designs.save(design, name);
 				if (saved != null) {
@@ -71,6 +75,7 @@ public final class ExitScreen extends Screen {
 				case GHOST -> saved == null ? "Could not save the design (see log)"
 						: "Design " + saved.name() + " saved; " + saved.entries().size() + " blocks to build. B shows the materials.";
 				case SAVE -> saved == null ? "Could not save the design (see log)" : "Design " + saved.name() + " saved.";
+				case EXPORT -> saved == null ? "Could not save the design (see log)" : "Design " + saved.name() + " saved.";
 				default -> "Design discarded.";
 			};
 			minecraft.player.sendSystemMessage(Component.literal("[Vire] ").withStyle(ChatFormatting.DARK_AQUA)
