@@ -3,6 +3,15 @@
 	"package": "dev.vire.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"BlockItemInvoker",
+		"ClientLevelMixin",
+		"ClientPacketListenerMixin",
+		"ConnectionMixin",
+		"GameRendererMixin",
+		"LocalPlayerMixin",
+		"MinecraftMixin",
+		"MouseHandlerMixin",
+		"MultiPlayerGameModeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -20,6 +20,10 @@ loom {
 			if (project.hasProperty("packetlog")) {
 				property "vire.packetlog", "true"
 			}
+			// ./gradlew runClient -Pselftest=run|quit: scripted M1 acceptance test (see dev.vire.client.dev.SelfTest)
+			if (project.hasProperty("selftest")) {
+				property "vire.selftest", project.property("selftest").toString()
+			}
 		}
 		server {
 			// Separate folder so the test server does not share worlds or configs with the client.

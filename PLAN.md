@@ -149,11 +149,15 @@ OFF ──enter──▶ STARTING ──sandbox ready──▶ ACTIVE ──exit
   border.
 
 ### 3.2 The body while in Vire Mode
-The real player stays where they stood. Every tick, `LocalPlayer` keeps sending its normal
-"still standing here" movement packet (same position, same rotation), so the server sees a
-player that is standing still. Movement keys move only the free camera. Gravity and knockback
-still apply to the real body: if the server moves it, Vire follows the server (and force-exits
-on teleport).
+The real player stays where they stood. As built in M1:
+- The camera entity is the `FreeCamera`, so vanilla `LocalPlayer.sendPosition` sends **no**
+  movement packets at all (it only sends while the player is the camera). The server sees a
+  player that stands still.
+- `LocalPlayer.input` is swapped for a blank `ClientInput`, so no key state (sneak, jump) is sent
+  in `ServerboundPlayerInputPacket`. Movement keys are read directly by the camera.
+- `LocalPlayer.move` is cancelled for the body, so a removed virtual block under it cannot make it
+  fall client-side.
+- If the server moves the body (teleport, knockback), Vire Mode ends.
 
 Risk to state in the README: the body is in the real world. Mobs and players can hurt it. Vire
 does not protect it.
@@ -186,6 +190,11 @@ screen, but it only fills `VirtualHotbar`. It is not `CreativeModeInventoryScree
 sends creative packets.
 
 ### 4.3 Layer 2: packet safety net
+As built in M1 this is an **allow-list** (`PacketGuard`): only connection upkeep, chat/commands,
+teleport acks, blank player input and container close may leave; every other serverbound packet
+is dropped and logged with a stack trace. New packet types in later versions are dropped by
+default. The original block-list idea, for reference:
+
 Mixin on `Connection.send(Packet, …)`: while Vire Mode is active, drop these packets and log a
 warning with a stack trace (a dropped packet is a bug in layer 1):
 `ServerboundUseItemOnPacket`, `ServerboundUseItemPacket`, `ServerboundPlayerActionPacket`,
@@ -479,6 +488,12 @@ Each milestone ends with a build that runs.
 - *Done when*: on the run-server test server, 2 minutes of building in Vire Mode logs zero
   forbidden packets (§4.3); exit restores the real blocks exactly, including a block another
   player (Carpet bot via RCON) changed inside the region meanwhile.
+- **Status 2026-11-11: done.** `runClient -Pselftest=quit` (op'd `VireTester` on run-server)
+  drives the real key paths: place, break, hold use/attack, drop/swap/pick/inventory keys, fly,
+  door + undo/redo, real `/setblock` changes during the session, exit, damage exit. Result: PASS;
+  only `ChatCommand`, `ClientTickEnd`, `KeepAlive`, `ChunkBatchReceived` sent, 0 dropped; region
+  of 20480 blocks restored exactly with the real changes on top; no movement warnings on the
+  server. Region copy into a sandbox moved to M2 (nothing to copy into yet).
 
 **M2 — Sandbox server** (the big one; start with a spike)
 - Spike first: boot `SandboxServer` with a void world in the dev client, set one block, tick it,
