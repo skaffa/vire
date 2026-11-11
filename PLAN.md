@@ -621,6 +621,14 @@ Each milestone ends with a build that runs.
 - Polish, README with screenshots and the "body stays in the world" warning, icon, Modrinth
   page (ask first), changelog. Tag `0.1.0+26.3`.
 
+- **M6 prepared 2026-11-11.** Icon (`tools/make_icon.py`: cyan ghost cube on a redstone line),
+  README rewritten with screenshots and the "body stays in the world" warning, `CHANGELOG.md`,
+  Modrinth text `media/modrinth-description.md`, gallery `media/gallery/` (1600×900, from
+  `-Pselftest=shots`) with `captions.md`, GitHub Actions `build.yml` (as in the other mods; it fetches
+  Litematica + MaLiLib from Modrinth with sha512 checks to compile the hook). Tag and Modrinth
+  page wait for the user's go. Still open from earlier milestones: the design list screen (§12
+  VireScreen), Litematica Printer support for diodes/hoppers (printer side).
+
 **M7 — Extras** (any order)
 - Several ghost designs at once; move/rotate a design before building; copy/paste inside the
   sandbox; more entity types; Stonecutter multi-version.

@@ -101,6 +101,10 @@ public final class SelfTest {
 			GhostTest.steps();
 			return;
 		}
+		if (MODE.equals("shots")) {
+			ShotsTest.steps(); // run with --width 1600 --height 900
+			return;
+		}
 		if (MODE.equals("litematic")) {
 			LitematicSelfTest.steps(); // needs -Plitematica (Litematica, MaLiLib and the printer in libs/)
 			return;

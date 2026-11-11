@@ -11,6 +11,5 @@
 	"key.vire.mark_out": "Mark delay output",
 	"key.vire.arrows": "Flow arrows on/off",
 	"key.vire.bom": "Materials panel on/off",
-	"vire.message.loaded": "Vire %s loaded. Config: %s",
-	"vire.message.not_ready": "Vire Mode is not built yet (milestone M1)."
+	"vire.message.loaded": "Vire %s loaded. Config: %s"
 }
