@@ -87,6 +87,11 @@ public final class VireClient implements ClientModInitializer {
 						.then(ClientCommands.literal("status").executes(ctx -> {
 							ctx.getSource().sendFeedback(Component.literal(status()));
 							return 1;
+						}))
+						// M2 spike: boot the sandbox server, test redstone timing, measure cost
+						.then(ClientCommands.literal("spike").executes(ctx -> {
+							dev.vire.client.sandbox.SandboxSpike.start(Minecraft.getInstance());
+							return 1;
 						}))));
 
 		SelfTest.init();

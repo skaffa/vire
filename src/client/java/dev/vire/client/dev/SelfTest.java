@@ -71,6 +71,19 @@ public final class SelfTest {
 			return;
 		}
 		VireClient.LOG.info("[selftest] enabled ({})", MODE);
+		if (MODE.equals("spike")) {
+			// M2 spike only: run it once in the world, wait for it, then quit
+			step(0, "spike", dev.vire.client.sandbox.SandboxSpike::start);
+			step(20, "wait for spike", mc -> {
+				if (dev.vire.client.sandbox.SandboxSpike.running()) {
+					index--; // re-run this step next tick until the spike thread is done
+					return;
+				}
+				done = true;
+				mc.stop();
+			});
+			return;
+		}
 		// Away from running circuits, so "restored exactly" can compare with the snapshot. (Near a running
 		// clock, the latest real states win on exit, which is correct but not comparable to a snapshot.)
 		step(0, "go to a quiet spot", mc -> mc.player.connection.sendCommand("tp @s 300 -60 300"));

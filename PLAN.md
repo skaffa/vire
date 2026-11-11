@@ -499,6 +499,21 @@ Each milestone ends with a build that runs.
 - Spike first: boot `SandboxServer` with a void world in the dev client, set one block, tick it,
   read it back. Measure boot time and memory. **Stop and report** if boot > 15 s or memory >
   600 MB; then reconsider (see §20).
+- **Spike result 2026-11-11: PASS** (`/vire spike`, or `runClient -Pselftest=spike`; dev client
+  on the 8 GB laptop, connected to run-server). `SandboxServer` = `MinecraftServer` subclass
+  modeled on vanilla `GameTestServer`: vanilla data pack only, one overworld with the
+  `the_void` flat preset, no network, no players, never saved.
+  | Measure | Result |
+  |---|---|
+  | Boot to ready | 9.2 s (6.4 s of it is data pack loading); first run 11.4 s |
+  | Heap | +30 MB while running; 20 MB above the start value after stop (check for leaks over 10 cycles) |
+  | Stop | 3.2 s (was 11.6 s before skipping chunk saves of the scratch world) |
+  | Tick rate | 20 TPS default, 98 at `setTickRate(100)` |
+  | Vanilla timing | repeater (delay 1) off 2 gt after input removed, lamp 4 gt after that, using `setFrozen` + `stepGameIfPaused(1)` |
+
+  Boot is over the 5 s target, so: start the sandbox in the background when the player joins a
+  world (setting, default on) and keep it warm while connected; V then enters instantly. Fall
+  back to "Starting sandbox…" when it is not ready yet.
 - Then: region copy into the sandbox, re-settle, `ChangeCollector`, mirror, block events
   (pistons), play/pause/step/speed, reset, falling blocks/TNT/items mirror.
 - *Done when*: a test kit of circuits (§17) behaves the same in the sandbox as in a real
