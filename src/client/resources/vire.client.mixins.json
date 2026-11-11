@@ -11,7 +11,9 @@
 		"LocalPlayerMixin",
 		"MinecraftMixin",
 		"MouseHandlerMixin",
-		"MultiPlayerGameModeMixin"
+		"MultiPlayerGameModeMixin",
+		"ServerChunkCacheMixin",
+		"ServerLevelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -39,6 +39,13 @@ class RegionTest {
 	}
 
 	@Test
+	void expand() {
+		Box b = new Box(0, 0, 0, 3, 3, 3).expand(1);
+		assertEquals(new Box(-1, -1, -1, 4, 4, 4), b);
+		assertEquals(216, b.volume());
+	}
+
+	@Test
 	void overlapsChunk() {
 		Box b = new Box(14, 0, 14, 17, 5, 17);
 		assertTrue(b.overlapsChunk(0, 0));

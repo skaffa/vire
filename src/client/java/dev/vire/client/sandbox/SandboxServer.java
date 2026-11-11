@@ -158,6 +158,12 @@ public final class SandboxServer extends MinecraftServer {
 		return true;
 	}
 
+	@Override
+	protected void tickServer(BooleanSupplier haveTime) {
+		super.tickServer(haveTime);
+		SandboxWorld.flush(this);
+	}
+
 	/**
 	 * The sandbox world is scratch (wiped on every start), so it is never saved. Saving a void world's
 	 * chunks took ~12 s on shutdown in the spike; this also skips the periodic autosave.

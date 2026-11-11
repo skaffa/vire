@@ -3,6 +3,7 @@ package dev.vire.client.mode;
 import dev.vire.client.VireClient;
 import dev.vire.client.camera.FreeCamera;
 import dev.vire.client.interact.VireWorld;
+import dev.vire.client.sandbox.Sandbox;
 import dev.vire.core.region.Box;
 
 import net.minecraft.ChatFormatting;
@@ -10,17 +11,24 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Vire Mode state machine (PLAN.md §3): OFF ⇄ ACTIVE. M1 has no sandbox server, so STARTING and
- * STOPPING are instant.
+ * Vire Mode state machine (PLAN.md §3): OFF → STARTING (sandbox server booting) → ACTIVE → OFF.
+ * The sandbox normally starts when the player joins a world ({@code keepWarm}), so STARTING is
+ * usually skipped.
  */
 public final class VireMode {
 	private static VireSession session;
+	/** V was pressed while the sandbox was still booting; enter as soon as it is ready. */
+	private static boolean pending;
+	private static int pendingTicks;
 
 	private VireMode() {
 	}
@@ -34,8 +42,15 @@ public final class VireMode {
 		return session;
 	}
 
+	public static boolean pending() {
+		return pending;
+	}
+
 	public static void toggle(Minecraft mc) {
-		if (active()) {
+		if (pending) {
+			pending = false;
+			hint(mc, "Vire Mode cancelled");
+		} else if (active()) {
 			exit(mc, "left", true);
 		} else {
 			enter(mc);
@@ -59,7 +74,17 @@ public final class VireMode {
 		for (String w : warnings(p, level)) {
 			say(mc, "Warning: " + w, ChatFormatting.YELLOW);
 		}
+		if (!Sandbox.ready()) {
+			Sandbox.ensureStarted();
+			pending = true;
+			pendingTicks = 0;
+			hint(mc, "Starting the Vire sandbox… (press V to cancel)");
+			return true;
+		}
+		return start(mc, p, level);
+	}
 
+	private static boolean start(Minecraft mc, LocalPlayer p, ClientLevel level) {
 		Box box = Box.centered(p.getBlockX(), p.getBlockY(), p.getBlockZ(), VireClient.config.regionSize,
 				level.getMinY(), level.getMaxY());
 		FreeCamera camera = new FreeCamera(level);
@@ -72,11 +97,38 @@ public final class VireMode {
 		p.setSprinting(false);
 
 		PacketGuard.reset();
-		session = new VireSession(level, p, box, camera, saved);
+		VireSession s = new VireSession(level, p, box, camera, saved);
+		snapshot(s);
+		session = s;
+		VireWorld.reload(s);
 		mc.setCameraEntity(camera);
 		say(mc, "Vire Mode on: region " + box.sizeX() + "×" + box.sizeY() + "×" + box.sizeZ()
-				+ ". Nothing you do here reaches the server. Press V to leave.", ChatFormatting.AQUA);
+				+ ". Nothing you do here reaches the server. Paused: K to run, . to step. V to leave.", ChatFormatting.AQUA);
 		return true;
+	}
+
+	/** Copies the real region plus a 1-block border from the client level (PLAN.md §5.4). */
+	private static void snapshot(VireSession s) {
+		Box outer = s.box.expand(1);
+		for (int x = outer.minX(); x <= outer.maxX(); x++) {
+			for (int y = outer.minY(); y <= outer.maxY(); y++) {
+				for (int z = outer.minZ(); z <= outer.maxZ(); z++) {
+					BlockPos pos = new BlockPos(x, y, z);
+					if (s.level.isOutsideBuildHeight(pos)) {
+						continue;
+					}
+					BlockState state = s.level.getBlockState(pos);
+					long key = VireWorld.key(pos);
+					if (!state.isAir()) {
+						s.snapshot.put(key, state);
+					}
+					BlockEntity be = s.level.getBlockEntity(pos);
+					if (be != null) {
+						s.snapshotBlockEntities.put(key, be.saveWithFullMetadata(s.level.registryAccess()));
+					}
+				}
+			}
+		}
 	}
 
 	/** Why entering is not allowed right now, or {@code null}. */
@@ -123,6 +175,10 @@ public final class VireMode {
 		}
 		session = null; // off first: restore writes must not be intercepted
 		VireWorld.resetRecording();
+		Sandbox.unload();
+		if (!VireClient.config.keepWarm) {
+			Sandbox.stop();
+		}
 		if (s.player == mc.player) {
 			s.player.input = s.savedInput;
 			s.player.setDeltaMovement(Vec3.ZERO);
@@ -144,10 +200,14 @@ public final class VireMode {
 
 	/** End of every client tick. */
 	public static void tick(Minecraft mc) {
+		if (pending) {
+			tickPending(mc);
+		}
 		VireSession s = session;
 		if (s == null) {
 			return;
 		}
+		VireWorld.applyMirror(s);
 		LocalPlayer p = mc.player;
 		if (p == null || mc.level != s.level || p != s.player) {
 			exit(mc, "world changed", false);
@@ -175,6 +235,32 @@ public final class VireMode {
 			s.camera.tickMovement(mc, VireClient.config.cameraSpeed);
 		} else {
 			s.camera.setOldPosAndRot();
+		}
+	}
+
+	private static void tickPending(Minecraft mc) {
+		LocalPlayer p = mc.player;
+		if (p == null || mc.level == null) {
+			pending = false;
+			return;
+		}
+		if (Sandbox.error() != null) {
+			pending = false;
+			say(mc, "The Vire sandbox could not start: " + Sandbox.error(), ChatFormatting.RED);
+			return;
+		}
+		if (Sandbox.ready()) {
+			pending = false;
+			String refusal = refusal(p);
+			if (refusal != null) {
+				say(mc, "Can't enter Vire Mode: " + refusal, ChatFormatting.RED);
+				return;
+			}
+			start(mc, p, mc.level);
+			return;
+		}
+		if (++pendingTicks % 20 == 0) {
+			hint(mc, "Starting the Vire sandbox… " + Sandbox.secondsSinceStart() + " s (press V to cancel)");
 		}
 	}
 

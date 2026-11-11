@@ -4,6 +4,9 @@ import dev.vire.client.VireClient;
 import dev.vire.client.mixin.BlockItemInvoker;
 import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
+import dev.vire.client.sandbox.MirrorBatch;
+import dev.vire.client.sandbox.Sandbox;
+import dev.vire.client.sandbox.SandboxWorld;
 import dev.vire.core.design.EditHistory;
 import dev.vire.core.region.PosKey;
 
@@ -17,6 +20,7 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockEventData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -26,20 +30,24 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Virtual edits in the client level (M1: straight into {@code ClientLevel}, no simulation).
+ * Client side of virtual editing (PLAN.md §6, §7).
  *
- * <p>While {@link #recording} is on, every {@code ClientLevel.setBlock} (including neighbor shape
- * updates and the other half of doors and beds) is reported by {@code ClientLevelMixin} and captured
- * in the session's {@code ShadowRegion} and, when a step is open, in the edit history.
+ * <p>User edits go to the sandbox server; the sandbox simulates and its changes come back as
+ * {@link MirrorBatch}es, which are written into the client level here. While a batch is written,
+ * {@link #recording} is on, so {@code ClientLevelMixin} captures every overwritten real state in the
+ * session's {@code ShadowRegion} for the restore on exit.
  */
 public final class VireWorld {
-	/** Flags for undo/redo/restore: tell the renderer, no neighbor shape updates (they are recorded already). */
+	/** Flags for restore and chunk re-apply: tell the renderer, no neighbor or shape updates. */
 	private static final int RAW = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_IMMEDIATE;
+	/** Flags for mirrored states: the same as vanilla uses for block updates from a server. */
+	private static final int MIRROR = 19;
 
 	private static boolean recording;
 	private static final Deque<BlockState> BEFORE = new ArrayDeque<>();
@@ -79,8 +87,42 @@ public final class VireWorld {
 		long key = key(pos);
 		s.shadow.beforeVirtualWrite(key, before);
 		s.shadow.afterVirtualWrite(key, after);
-		if (s.history.isOpen()) {
-			s.history.add(key, before, after);
+	}
+
+	// ---- mirror (client tick) -----------------------------------------------------------------------
+
+	/** Writes everything the sandbox sent since the last tick into the client level. */
+	public static void applyMirror(VireSession s) {
+		MirrorBatch b;
+		while ((b = Sandbox.OUT.poll()) != null) {
+			if (b.generation() != s.generation) {
+				continue; // from an older load or session
+			}
+			s.frozen = b.frozen();
+			s.tickRate = b.tickRate();
+			s.sandboxTick = b.tick();
+			s.loaded = true;
+			recording = true;
+			try {
+				// like vanilla: block events (piston starts) first, then the block updates of that tick
+				for (BlockEventData e : b.events()) {
+					if (s.level.getBlockState(e.pos()).is(e.block())) {
+						s.level.blockEvent(e.pos(), e.block(), e.paramA(), e.paramB());
+					}
+				}
+				long[] keys = b.keys();
+				BlockState[] states = b.states();
+				for (int i = 0; i < keys.length; i++) {
+					BlockPos p = pos(keys[i]);
+					if (s.level.getBlockState(p) != states[i]) {
+						s.level.setBlock(p, states[i], MIRROR);
+					}
+				}
+			} catch (RuntimeException e) {
+				VireClient.LOG.warn("[Vire] Mirror batch failed", e);
+			} finally {
+				resetRecording();
+			}
 		}
 	}
 
@@ -111,12 +153,8 @@ public final class VireWorld {
 		if (state == null) {
 			return;
 		}
-		edit(s, () -> {
-			if (s.level.setBlock(pos, state, Block.UPDATE_ALL_IMMEDIATE)) {
-				BlockState placed = s.level.getBlockState(pos);
-				placed.getBlock().setPlacedBy(s.level, pos, placed, s.player, stack);
-			}
-		});
+		record(s, pos, state);
+		Sandbox.edit(new SandboxWorld.Edit(key(pos), state, true));
 		SoundType sound = state.getSoundType();
 		s.level.playLocalSound(pos, sound.getPlaceSound(), SoundSource.BLOCKS, (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F, false);
 	}
@@ -136,9 +174,36 @@ public final class VireWorld {
 		if (old.isAir()) {
 			return;
 		}
-		edit(s, () -> s.level.setBlock(pos, s.level.getFluidState(pos).createLegacyBlock(), Block.UPDATE_ALL_IMMEDIATE));
+		BlockState after = s.level.getFluidState(pos).createLegacyBlock();
+		record(s, pos, after);
+		Sandbox.edit(new SandboxWorld.Edit(key(pos), after, false));
 		SoundType sound = old.getSoundType();
 		s.level.playLocalSound(pos, sound.getBreakSound(), SoundSource.BLOCKS, (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F, false);
+	}
+
+	/** Places an exact state (scripts and tests); recorded like a click. */
+	public static void placeState(BlockPos pos, BlockState state) {
+		VireSession s = VireMode.session();
+		if (s != null && s.box.contains(pos.getX(), pos.getY(), pos.getZ())) {
+			record(s, pos, state);
+			Sandbox.edit(new SandboxWorld.Edit(key(pos), state, true));
+		}
+	}
+
+	/** Removes the block at {@code pos} (scripts and tests); recorded like a click. */
+	public static void breakAt(BlockPos pos) {
+		VireSession s = VireMode.session();
+		if (s != null && s.box.contains(pos.getX(), pos.getY(), pos.getZ())) {
+			BlockState after = s.level.getFluidState(pos).createLegacyBlock();
+			record(s, pos, after);
+			Sandbox.edit(new SandboxWorld.Edit(key(pos), after, false));
+		}
+	}
+
+	private static void record(VireSession s, BlockPos pos, BlockState after) {
+		s.history.begin();
+		s.history.add(key(pos), s.level.getBlockState(pos), after);
+		s.history.end();
 	}
 
 	/** Middle click: put the targeted block in the virtual hotbar. */
@@ -148,8 +213,7 @@ public final class VireWorld {
 			return;
 		}
 		BlockState state = s.level.getBlockState(hit.getBlockPos());
-		ItemStack stack = new ItemStack(state.getBlock().asItem());
-		VirtualHotbar.pick(stack);
+		VirtualHotbar.pick(new ItemStack(state.getBlock().asItem()));
 	}
 
 	public static void undo(Minecraft mc) {
@@ -157,13 +221,12 @@ public final class VireWorld {
 		if (s == null) {
 			return;
 		}
-		EditHistory.Step<BlockState> step = s.history.undo();
-		if (step == null) {
+		if (s.history.undo() == null) {
 			VireMode.hint(mc, "Nothing to undo");
 			return;
 		}
-		apply(s, step.inverse());
-		VireMode.hint(mc, "Undo (" + s.history.undoSize() + " left)");
+		reload(s);
+		VireMode.hint(mc, "Undo (" + s.history.undoSize() + " left), circuit reset");
 	}
 
 	public static void redo(Minecraft mc) {
@@ -171,37 +234,36 @@ public final class VireWorld {
 		if (s == null) {
 			return;
 		}
-		EditHistory.Step<BlockState> step = s.history.redo();
-		if (step == null) {
+		if (s.history.redo() == null) {
 			VireMode.hint(mc, "Nothing to redo");
 			return;
 		}
-		apply(s, step.changes());
-		VireMode.hint(mc, "Redo");
+		reload(s);
+		VireMode.hint(mc, "Redo, circuit reset");
 	}
 
-	private static void apply(VireSession s, List<EditHistory.Change<BlockState>> changes) {
-		recording = true;
-		try {
-			for (EditHistory.Change<BlockState> c : changes) {
-				s.level.setBlock(pos(c.key()), c.after(), RAW);
+	/** Reset button: rebuild the sandbox from the snapshot plus all edits, paused (PLAN.md §7). */
+	public static void reset(Minecraft mc) {
+		VireSession s = VireMode.session();
+		if (s != null) {
+			reload(s);
+			VireMode.hint(mc, "Circuit reset (paused)");
+		}
+	}
+
+	/** Loads snapshot + current edits into the sandbox. */
+	public static void reload(VireSession s) {
+		s.generation = Sandbox.load(s.box, s.snapshot, s.snapshotBlockEntities, edits(s.history));
+	}
+
+	public static List<SandboxWorld.Edit> edits(EditHistory<BlockState> history) {
+		List<SandboxWorld.Edit> out = new ArrayList<>();
+		for (EditHistory.Step<BlockState> step : history.steps()) {
+			for (EditHistory.Change<BlockState> c : step.changes()) {
+				out.add(new SandboxWorld.Edit(c.key(), c.after(), !c.after().isAir() && c.after().getFluidState().isEmpty()));
 			}
-		} finally {
-			resetRecording();
 		}
-	}
-
-	private static void edit(VireSession s, Runnable action) {
-		s.history.begin();
-		recording = true;
-		try {
-			action.run();
-		} catch (RuntimeException e) {
-			VireClient.LOG.warn("[Vire] Virtual edit failed", e);
-		} finally {
-			resetRecording();
-			s.history.end();
-		}
+		return out;
 	}
 
 	// ---- server traffic while active --------------------------------------------------------------

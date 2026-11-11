@@ -32,14 +32,15 @@ public final class VireHud {
 		g.fill(0, 2, 2, h - 2, FRAME);
 		g.fill(w - 2, 2, w, h - 2, FRAME);
 
-		String status = "VIRE MODE  " + s.box.sizeX() + "×" + s.box.sizeY() + "×" + s.box.sizeZ()
+		String clock = !s.loaded ? "loading…" : s.frozen ? "PAUSED" : "RUNNING " + (int) s.tickRate + " TPS";
+		String status = "VIRE MODE  " + clock + "  tick " + s.sandboxTick + "  " + s.box.sizeX() + "×" + s.box.sizeY() + "×" + s.box.sizeZ()
 				+ "  edits " + s.history.undoSize()
 				+ "  held updates " + s.shadow.interceptedUpdates()
 				+ "  blocked packets " + PacketGuard.dropped();
 		int tw = mc.font.width(status);
 		g.fill(w / 2 - tw / 2 - 4, 4, w / 2 + tw / 2 + 4, 16, 0xA0000000);
 		g.text(mc.font, status, w / 2 - tw / 2, 6, PacketGuard.dropped() > 0 ? 0xFFFF5555 : 0xFF66E0FF);
-		String help = "V leave · E blocks · middle click pick · Ctrl+Z / Ctrl+Y undo / redo";
+		String help = "V leave · K run · . , step · [ ] speed · R reset · E blocks · Ctrl+Z/Y";
 		g.text(mc.font, help, w / 2 - mc.font.width(help) / 2, 19, 0xB0FFFFFF);
 	}
 

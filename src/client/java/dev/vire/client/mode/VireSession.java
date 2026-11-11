@@ -33,6 +33,19 @@ public final class VireSession {
 	public final long startedAt;
 	public float lastHealth;
 
+	/** Real states of the region plus a 1-block border, taken on enter: the base of every sandbox load. */
+	public final Map<Long, BlockState> snapshot = new HashMap<>();
+	/** Block entity data in the snapshot (signs, banners, what the client knows of containers). */
+	public final Map<Long, CompoundTag> snapshotBlockEntities = new HashMap<>();
+	/** Current sandbox load; mirror batches of other loads are dropped. */
+	public int generation;
+	/** True once the first batch of the current session arrived. */
+	public boolean loaded;
+	/** Sandbox clock, from the last batch. */
+	public boolean frozen = true;
+	public float tickRate = 20;
+	public long sandboxTick;
+
 	VireSession(ClientLevel level, LocalPlayer player, Box box, FreeCamera camera, ClientInput savedInput) {
 		this.level = level;
 		this.player = player;

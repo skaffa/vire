@@ -9,6 +9,9 @@ import dev.vire.client.mode.PacketGuard;
 import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
 import dev.vire.core.region.Box;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.RedstoneLampBlock;
 
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
@@ -62,6 +65,13 @@ public final class SelfTest {
 	private static BlockPos doorPos;
 	private static BlockState p1Before;
 	private static BlockState p2Before;
+	private static BlockPos cBlock;
+	private static BlockPos cRepeater;
+	private static BlockPos cLamp;
+	private static BlockPos pistonPos;
+	private static long tickMark;
+	private static final List<String> offSteps = new ArrayList<>();
+	private static int waited;
 
 	private SelfTest() {
 	}
@@ -87,13 +97,10 @@ public final class SelfTest {
 		// Away from running circuits, so "restored exactly" can compare with the snapshot. (Near a running
 		// clock, the latest real states win on exit, which is correct but not comparable to a snapshot.)
 		step(0, "go to a quiet spot", mc -> mc.player.connection.sendCommand("tp @s 300 -60 300"));
-		step(80, "enter", mc -> {
-			click(VireClient.toggleKey());
-		});
-		step(3, "snapshot", mc -> {
-			VireSession s = need(VireMode.session(), "Vire Mode did not start");
-			box = s.box;
+		step(80, "snapshot, enter", mc -> {
 			body = mc.player.position();
+			BlockPos b = mc.player.blockPosition();
+			box = Box.centered(b.getX(), b.getY(), b.getZ(), VireClient.config.regionSize, mc.level.getMinY(), mc.level.getMaxY());
 			snapshot = new HashMap<>();
 			for (int x = box.minX(); x <= box.maxX(); x++) {
 				for (int y = box.minY(); y <= box.maxY(); y++) {
@@ -103,48 +110,54 @@ public final class SelfTest {
 					}
 				}
 			}
-			ground = mc.player.blockPosition().below().east(3);
+			ground = b.below().east(3);
 			p1 = ground.above();
 			p2 = ground.south(4);
 			p1Before = snapshot.get(p1);
 			p2Before = snapshot.get(p2);
-			aimDown(s, ground);
+			click(VireClient.toggleKey());
 		});
-		step(3, "place stone", mc -> {
+		waitFor("sandbox loaded", () -> VireMode.active() && VireMode.session().loaded, 600);
+		step(5, "sandbox copy matches the real world", mc -> {
+			check(VireMode.session().box.equals(box), "region box as expected");
+			check(countWrong(mc, false) == 0, "virtual view equals the real snapshot after copy + re-settle");
+			check(VireMode.session().frozen, "sandbox starts paused");
+		});
+		// Edits travel client -> sandbox -> client, and the client may run several ticks per frame after a
+		// hitch, so every async result is awaited by condition, not by a fixed number of ticks.
+		aim(() -> ground);
+		step(1, "place stone", mc -> {
 			click(mc.options.keyHotbarSlots[6]); // smooth stone
 			click(mc.options.keyUse);
 		});
-		step(3, "check stone + place repeater", mc -> {
-			check(mc.level.getBlockState(p1).is(Blocks.SMOOTH_STONE), "smooth stone at p1, got " + mc.level.getBlockState(p1));
-			aimDown(VireMode.session(), p1);
+		waitFor("smooth stone at p1", () -> is(p1, Blocks.SMOOTH_STONE), 100);
+		aim(() -> p1);
+		step(1, "place repeater", mc -> {
 			click(mc.options.keyHotbarSlots[1]); // repeater
 			click(mc.options.keyUse);
 		});
-		step(3, "check repeater + break it", mc -> {
-			check(mc.level.getBlockState(p1.above()).getBlock() instanceof RepeaterBlock, "repeater above p1, got " + mc.level.getBlockState(p1.above()));
-			aimDown(VireMode.session(), p1.above());
-			click(mc.options.keyAttack);
-		});
-		step(3, "check broken + keys that would leak", mc -> {
-			check(mc.level.getBlockState(p1.above()).isAir(), "repeater removed");
+		waitFor("repeater above p1", () -> is(p1.above(), Blocks.REPEATER), 100);
+		aim(() -> p1.above());
+		step(1, "break repeater", mc -> click(mc.options.keyAttack));
+		waitFor("repeater removed", () -> Minecraft.getInstance().level.getBlockState(p1.above()).isAir(), 100);
+		step(1, "keys that would leak", mc -> {
 			click(mc.options.keyDrop);
 			click(mc.options.keySwapOffhand);
 			click(mc.options.keyPickItem);
 			click(mc.options.keyInventory);
 		});
-		step(3, "palette opened", mc -> {
-			check(mc.gui.screen() instanceof dev.vire.client.interact.PaletteScreen, "inventory key opens the palette, got " + mc.gui.screen());
-			mc.gui.setScreen(null);
-			aimDown(VireMode.session(), p1);
+		waitFor("inventory key opens the palette", () -> Minecraft.getInstance().gui.screen() instanceof dev.vire.client.interact.PaletteScreen, 40);
+		step(1, "close palette", mc -> mc.gui.setScreen(null));
+		aim(() -> p1);
+		step(1, "hold use", mc -> {
 			click(mc.options.keyHotbarSlots[6]);
 			set(mc.options.keyUse, true); // hold: builds a short tower
 		});
-		step(20, "release use, hold attack", mc -> {
-			set(mc.options.keyUse, false);
-			check(!mc.level.getBlockState(p1.above()).isAir(), "holding use repeats placement");
-			aimDown(VireMode.session(), p1.above(3));
-			set(mc.options.keyAttack, true);
-		});
+		step(20, "release use", mc -> set(mc.options.keyUse, false));
+		waitFor("holding use repeats placement", () -> is(p1.above(), Blocks.SMOOTH_STONE), 100);
+		// the held-use tower height depends on frame timing: just look down at it, any top block will do
+		step(1, "aim at tower", mc -> aimDown(VireMode.session(), p1.above(3)));
+		step(5, "hold attack", mc -> set(mc.options.keyAttack, true));
 		step(20, "release attack, fly", mc -> {
 			set(mc.options.keyAttack, false);
 			set(mc.options.keyUp, true);
@@ -157,64 +170,111 @@ public final class SelfTest {
 			VireSession s = VireMode.session();
 			check(s.camera.position().distanceTo(body) > 3, "camera flew away");
 			check(mc.player.position().distanceToSqr(body) < 1e-6, "body did not move");
-		});
-		step(2, "door + undo/redo", mc -> {
-			VireSession s = VireMode.session();
 			doorPos = ground.north(3).above();
 			VirtualHotbar.set(8, new ItemStack(Items.OAK_DOOR));
 			click(mc.options.keyHotbarSlots[8]);
-			aimDown(s, ground.north(3));
 		});
-		step(3, "place door", mc -> click(mc.options.keyUse));
-		step(3, "check door, undo", mc -> {
-			check(mc.level.getBlockState(doorPos).getBlock() instanceof DoorBlock, "door lower half");
-			BlockState upper = mc.level.getBlockState(doorPos.above());
-			check(upper.getBlock() instanceof DoorBlock && upper.getValue(DoorBlock.HALF) == DoubleBlockHalf.UPPER, "door upper half");
-			VireWorld.undo(mc);
-		});
-		step(2, "check undo, redo", mc -> {
-			check(mc.level.getBlockState(doorPos).equals(snapshot.get(doorPos)), "undo removed door lower half");
-			check(mc.level.getBlockState(doorPos.above()).equals(snapshot.get(doorPos.above())), "undo removed door upper half");
-			VireWorld.redo(mc);
-		});
-		step(2, "frame a screenshot", mc -> {
-			check(mc.level.getBlockState(doorPos.above()).getBlock() instanceof DoorBlock, "redo restored door");
-			// behind and above the body, looking at the build (yaw -45 = towards +x +z)
+		aim(() -> ground.north(3));
+		step(1, "place door", mc -> click(mc.options.keyUse));
+		waitFor("door, both halves", () -> {
+			BlockState lower = Minecraft.getInstance().level.getBlockState(doorPos);
+			BlockState upper = Minecraft.getInstance().level.getBlockState(doorPos.above());
+			return lower.getBlock() instanceof DoorBlock && upper.getBlock() instanceof DoorBlock
+					&& upper.getValue(DoorBlock.HALF) == DoubleBlockHalf.UPPER;
+		}, 100);
+		step(1, "undo", VireWorld::undo);
+		waitFor("undo removed both door halves", () -> Minecraft.getInstance().level.getBlockState(doorPos).equals(snapshot.get(doorPos))
+				&& Minecraft.getInstance().level.getBlockState(doorPos.above()).equals(snapshot.get(doorPos.above())), 200);
+		step(1, "redo", VireWorld::redo);
+		waitFor("redo restored the door", () -> Minecraft.getInstance().level.getBlockState(doorPos.above()).getBlock() instanceof DoorBlock, 200);
+		step(1, "frame a screenshot", mc -> {
+			// behind and above the body, looking at the build
 			VireMode.session().camera.snapTo(body.x - 4, body.y + 4, body.z - 7, -30, 35);
 		});
 		step(10, "screenshot", mc -> Screenshot.grab(mc.gameDirectory, "vire-selftest.png", mc.gameRenderer.mainRenderTarget(), 1,
 				msg -> VireClient.LOG.info("[selftest] screenshot: {}", msg.getString())));
+		step(2, "circuit: redstone block -> repeater -> lamp (paused)", mc -> {
+			BlockPos base = BlockPos.containing(body).west(4);
+			cBlock = base;
+			cRepeater = base.south();
+			cLamp = base.south(2);
+			VireWorld.placeState(cLamp, Blocks.REDSTONE_LAMP.defaultBlockState());
+			// facing = input side: reads from the north, powers the lamp to the south
+			VireWorld.placeState(cRepeater, Blocks.REPEATER.defaultBlockState().setValue(RepeaterBlock.FACING, Direction.NORTH));
+			VireWorld.placeState(cBlock, Blocks.REDSTONE_BLOCK.defaultBlockState());
+		});
+		waitFor("circuit placed", () -> is(cBlock, Blocks.REDSTONE_BLOCK) && is(cRepeater, Blocks.REPEATER) && is(cLamp, Blocks.REDSTONE_LAMP), 100);
+		step(1, "paused: repeater waits", mc -> {
+			check(VireMode.session().frozen, "still paused");
+			check(!powered(mc), "repeater not powered while paused");
+		});
+		stepOnce();
+		step(1, "1 step", mc -> check(!powered(mc), "repeater not powered after 1 game tick"));
+		stepOnce();
+		step(1, "2 steps", mc -> {
+			check(powered(mc), "repeater powered after 2 game ticks");
+			check(lit(mc), "lamp lit as soon as the repeater is");
+			tickMark = VireMode.session().sandboxTick;
+			click(VireClient.pauseKey());
+		});
+		waitFor("running after K", () -> !VireMode.session().frozen, 100);
+		waitFor("sandbox ticks advance while running", () -> VireMode.session().sandboxTick - tickMark >= 10, 200);
+		step(1, "faster", mc -> click(VireClient.fasterKey()));
+		waitFor("] raises 20 -> 40 TPS", () -> VireMode.session().tickRate == 40, 100);
+		step(1, "slower, pause", mc -> {
+			click(VireClient.slowerKey());
+			click(VireClient.pauseKey());
+		});
+		waitFor("paused again at 20 TPS", () -> VireMode.session().frozen && VireMode.session().tickRate == 20, 100);
+		step(1, "cut the input", mc -> VireWorld.breakAt(cBlock));
+		waitFor("input removed", () -> Minecraft.getInstance().level.getBlockState(cBlock).isAir(), 100);
+		for (int i = 1; i <= 6; i++) {
+			step(1, "sample", mc -> offSteps.add((powered(mc) ? "R" : "r") + (lit(mc) ? "L" : "l")));
+			stepOnce();
+		}
+		step(1, "off timing", mc -> {
+			offSteps.add((powered(mc) ? "R" : "r") + (lit(mc) ? "L" : "l"));
+			// after 0..6 steps: repeater off after 2 gt, lamp 4 gt after that
+			check(offSteps.equals(List.of("RL", "RL", "rL", "rL", "rL", "rL", "rl")), "repeater off at 2 gt, lamp at 6 gt: " + offSteps);
+			pistonPos = BlockPos.containing(body).west(7);
+			VireWorld.placeState(pistonPos.above(), Blocks.SMOOTH_STONE.defaultBlockState());
+			VireWorld.placeState(pistonPos, Blocks.PISTON.defaultBlockState().setValue(PistonBaseBlock.FACING, Direction.UP));
+			VireWorld.placeState(pistonPos.north(), Blocks.REDSTONE_BLOCK.defaultBlockState());
+		});
+		waitFor("piston placed", () -> is(pistonPos.north(), Blocks.REDSTONE_BLOCK), 100);
+		for (int i = 0; i < 4; i++) {
+			stepOnce();
+		}
+		step(1, "piston pushed", mc -> {
+			BlockState piston = mc.level.getBlockState(pistonPos);
+			check(piston.is(Blocks.PISTON) && piston.getValue(PistonBaseBlock.EXTENDED), "piston extended: " + piston);
+			check(mc.level.getBlockState(pistonPos.above()).is(Blocks.PISTON_HEAD), "piston head above: " + mc.level.getBlockState(pistonPos.above()));
+			check(mc.level.getBlockState(pistonPos.above(2)).is(Blocks.SMOOTH_STONE), "stone pushed up: " + mc.level.getBlockState(pistonPos.above(2)));
+			click(VireClient.resetKey());
+		});
+		waitFor("reset rebuilds the design, paused, piston retracted",
+				() -> VireMode.session().frozen && is(pistonPos.above(), Blocks.SMOOTH_STONE), 200);
 		step(5, "real server changes", mc -> {
 			mc.player.connection.sendCommand("setblock " + p1.getX() + " " + p1.getY() + " " + p1.getZ() + " minecraft:gold_block");
 			mc.player.connection.sendCommand("setblock " + p2.getX() + " " + p2.getY() + " " + p2.getZ() + " minecraft:gold_block");
 		});
-		step(30, "real changes held back", mc -> {
+		waitFor("server updates intercepted", () -> VireMode.session().shadow.interceptedUpdates() >= 2, 200);
+		step(5, "real changes held back", mc -> {
 			check(!mc.level.getBlockState(p1).is(Blocks.GOLD_BLOCK), "virtual block at p1 stays while active");
 			check(mc.level.getBlockState(p2).equals(p2Before), "real change at p2 not shown while active");
 			check(VireMode.session().shadow.interceptedUpdates() >= 2, "server updates intercepted: " + VireMode.session().shadow.interceptedUpdates());
 			check(PacketGuard.dropped() == 0, "no packets reached the safety net: " + PacketGuard.droppedByType());
 			click(VireClient.toggleKey());
 		});
+		waitFor("Vire Mode left", () -> !VireMode.active(), 100);
 		step(3, "restore exact", mc -> {
-			check(!VireMode.active(), "Vire Mode left");
-			int wrong = 0;
-			for (Map.Entry<BlockPos, BlockState> e : snapshot.entrySet()) {
-				BlockPos p = e.getKey();
-				BlockState want = p.equals(p1) || p.equals(p2) ? Blocks.GOLD_BLOCK.defaultBlockState() : e.getValue();
-				BlockState got = mc.level.getBlockState(p);
-				if (!got.equals(want)) {
-					if (wrong < 10) {
-						VireClient.LOG.warn("[selftest] {} expected {} got {}", p, want, got);
-					}
-					wrong++;
-				}
-			}
+			int wrong = countWrong(mc, true);
 			check(wrong == 0, "region restored exactly (" + wrong + " wrong of " + snapshot.size() + ")");
 			check(mc.player.position().distanceToSqr(body) < 1e-6, "body still in place after exit");
 			click(VireClient.toggleKey());
 		});
+		waitFor("re-entered", VireMode::active, 200);
 		step(5, "damage ends Vire Mode", mc -> {
-			check(VireMode.active(), "re-entered");
 			mc.player.connection.sendCommand("damage " + mc.player.getName().getString() + " 1");
 		});
 		step(30, "check forced exit, clean up", mc -> {
@@ -260,6 +320,70 @@ public final class SelfTest {
 		if (index < STEPS.size()) {
 			waitUntil = ticks + STEPS.get(index).delay();
 		}
+	}
+
+	/** Points the camera down at {@code target} and waits until the crosshair is on it. */
+	private static void aim(java.util.function.Supplier<BlockPos> target) {
+		step(1, "aim", mc -> aimDown(VireMode.session(), target.get()));
+		waitFor("aimed", () -> Minecraft.getInstance().hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
+				&& hit.getBlockPos().equals(target.get()), 200);
+	}
+
+	/** Presses the step key and waits until the sandbox clock moved one tick. */
+	private static void stepOnce() {
+		step(1, "step", mc -> {
+			tickMark = VireMode.session().sandboxTick;
+			click(VireClient.stepKey());
+		});
+		waitFor("stepped", () -> VireMode.session().sandboxTick == tickMark + 1, 100);
+	}
+
+	private static boolean is(BlockPos pos, net.minecraft.world.level.block.Block block) {
+		return Minecraft.getInstance().level.getBlockState(pos).is(block);
+	}
+
+	/** A step that repeats every tick until {@code done} holds; fails after {@code maxTicks}. */
+	private static void waitFor(String name, java.util.function.BooleanSupplier done, int maxTicks) {
+		step(1, name, mc -> {
+			if (done.getAsBoolean()) {
+				waited = 0;
+				if (!name.equals("aimed") && !name.equals("stepped")) {
+					check(true, name);
+				}
+			} else if (++waited > maxTicks) {
+				waited = 0;
+				check(false, name + " (timed out)");
+			} else {
+				index--;
+			}
+		});
+	}
+
+	private static boolean powered(Minecraft mc) {
+		BlockState s = mc.level.getBlockState(cRepeater);
+		return s.getBlock() instanceof RepeaterBlock && s.getValue(RepeaterBlock.POWERED);
+	}
+
+	private static boolean lit(Minecraft mc) {
+		BlockState s = mc.level.getBlockState(cLamp);
+		return s.is(Blocks.REDSTONE_LAMP) && s.getValue(RedstoneLampBlock.LIT);
+	}
+
+	/** Positions in the region whose client state differs from the snapshot (p1/p2 expected gold if {@code gold}). */
+	private static int countWrong(Minecraft mc, boolean gold) {
+		int wrong = 0;
+		for (Map.Entry<BlockPos, BlockState> e : snapshot.entrySet()) {
+			BlockPos p = e.getKey();
+			BlockState want = gold && (p.equals(p1) || p.equals(p2)) ? Blocks.GOLD_BLOCK.defaultBlockState() : e.getValue();
+			BlockState got = mc.level.getBlockState(p);
+			if (!got.equals(want)) {
+				if (wrong < 10) {
+					VireClient.LOG.warn("[selftest] {} expected {} got {}", p, want, got);
+				}
+				wrong++;
+			}
+		}
+		return wrong;
 	}
 
 	private static void step(int delay, String name, Consumer<Minecraft> action) {

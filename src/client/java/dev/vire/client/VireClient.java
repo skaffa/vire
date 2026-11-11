@@ -10,12 +10,15 @@ import dev.vire.client.mode.VireMode;
 import dev.vire.client.mode.VireSession;
 import dev.vire.client.overlay.RegionOverlay;
 import dev.vire.client.overlay.VireHud;
+import dev.vire.client.interact.VireWorld;
+import dev.vire.client.sandbox.Sandbox;
 import dev.vire.core.config.ConfigStore;
 import dev.vire.core.config.VireConfig;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -42,6 +45,14 @@ public final class VireClient implements ClientModInitializer {
 	public static VireConfig config = new VireConfig();
 
 	private static KeyMapping toggleKey;
+	private static KeyMapping pauseKey;
+	private static KeyMapping stepKey;
+	private static KeyMapping stepManyKey;
+	private static KeyMapping slowerKey;
+	private static KeyMapping fasterKey;
+	private static KeyMapping resetKey;
+	/** Tick rates the speed keys step through (PLAN.md §5.7). */
+	private static final float[] RATES = {1, 2, 5, 10, 20, 40, 60, 100};
 
 	@Override
 	public void onInitializeClient() {
@@ -56,9 +67,24 @@ public final class VireClient implements ClientModInitializer {
 
 		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
 		toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.toggle", InputConstants.KEY_V, category));
+		pauseKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.pause", InputConstants.KEY_K, category));
+		stepKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.step", InputConstants.KEY_PERIOD, category));
+		stepManyKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.step_many", InputConstants.KEY_COMMA, category));
+		slowerKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.slower", InputConstants.KEY_LBRACKET, category));
+		fasterKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.faster", InputConstants.KEY_RBRACKET, category));
+		resetKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.vire.reset", InputConstants.KEY_R, category));
 
 		ClientTickEvents.END_CLIENT_TICK.register(VireClient::tick);
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> mc.execute(() -> VireMode.exit(mc, "disconnected", false)));
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
+			if (config.keepWarm) {
+				Sandbox.ensureStarted(); // boots in the background, so V is instant later
+			}
+		});
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> mc.execute(() -> {
+			VireMode.exit(mc, "disconnected", false);
+			Sandbox.stop();
+		}));
+		ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> Sandbox.stop());
 
 		HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, Identifier.fromNamespaceAndPath(MOD_ID, "frame"), VireHud::frame);
 		HudElementRegistry.replaceElement(VanillaHudElements.HOTBAR, vanilla -> (g, delta) -> {
@@ -107,13 +133,74 @@ public final class VireClient implements ClientModInitializer {
 				VireMode.toggle(mc);
 			}
 		}
+		VireSession s = VireMode.session();
+		while (pauseKey.consumeClick()) {
+			if (s != null) {
+				Sandbox.togglePause();
+			}
+		}
+		while (stepKey.consumeClick()) {
+			if (s != null) {
+				Sandbox.step(1);
+			}
+		}
+		while (stepManyKey.consumeClick()) {
+			if (s != null) {
+				Sandbox.step(10);
+			}
+		}
+		while (slowerKey.consumeClick()) {
+			if (s != null) {
+				Sandbox.setTickRate(nextRate(s.tickRate, -1));
+			}
+		}
+		while (fasterKey.consumeClick()) {
+			if (s != null) {
+				Sandbox.setTickRate(nextRate(s.tickRate, +1));
+			}
+		}
+		while (resetKey.consumeClick()) {
+			if (s != null) {
+				VireWorld.reset(mc);
+			}
+		}
 		VireMode.tick(mc);
 		RegionOverlay.tick();
 		SelfTest.tick(mc);
 	}
 
+	static float nextRate(float current, int dir) {
+		int best = 0;
+		for (int i = 0; i < RATES.length; i++) {
+			if (Math.abs(RATES[i] - current) < Math.abs(RATES[best] - current)) {
+				best = i;
+			}
+		}
+		return RATES[Math.max(0, Math.min(RATES.length - 1, best + dir))];
+	}
+
 	public static KeyMapping toggleKey() {
 		return toggleKey;
+	}
+
+	public static KeyMapping pauseKey() {
+		return pauseKey;
+	}
+
+	public static KeyMapping stepKey() {
+		return stepKey;
+	}
+
+	public static KeyMapping fasterKey() {
+		return fasterKey;
+	}
+
+	public static KeyMapping slowerKey() {
+		return slowerKey;
+	}
+
+	public static KeyMapping resetKey() {
+		return resetKey;
 	}
 
 	public static String status() {
@@ -121,9 +208,11 @@ public final class VireClient implements ClientModInitializer {
 		Runtime rt = Runtime.getRuntime();
 		long usedMb = (rt.totalMemory() - rt.freeMemory()) >> 20;
 		if (s == null) {
-			return "[Vire] off. Region size " + config.regionSize + ". Memory " + usedMb + " MB.";
+			return "[Vire] off. Sandbox " + (Sandbox.ready() ? "ready" : Sandbox.startingOrReady() ? "starting" : "stopped")
+					+ ". Region size " + config.regionSize + ". Memory " + usedMb + " MB.";
 		}
-		return "[Vire] on. Region " + s.box + ", edits " + s.history.undoSize() + ", held server updates "
+		return "[Vire] on. Sandbox " + (s.frozen ? "paused" : "running") + " at " + s.tickRate + " TPS, tick " + s.sandboxTick
+				+ ". Region " + s.box + ", edits " + s.history.undoSize() + ", held server updates "
 				+ s.shadow.interceptedUpdates() + ", blocked packets " + PacketGuard.dropped() + ", slot "
 				+ (VirtualHotbar.selected() + 1) + ". Memory " + usedMb + " MB.";
 	}

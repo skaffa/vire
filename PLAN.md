@@ -514,6 +514,21 @@ Each milestone ends with a build that runs.
   Boot is over the 5 s target, so: start the sandbox in the background when the player joins a
   world (setting, default on) and keep it warm while connected; V then enters instantly. Fall
   back to "Starting sandbox…" when it is not ready yet.
+- **Core of M2 done 2026-11-11.** Built: sandbox pre-boots on join and stays warm (`keepWarm`,
+  default on; "Starting the Vire sandbox…" if V comes first); enter copies the region + a
+  1-block border from the client (states and block entity data), re-settles (every block
+  re-reads its neighbors), starts paused. Edits go to the sandbox; its changes and block events
+  come back as `MirrorBatch`es (`ServerChunkCache.blockChanged` + `ServerLevel.doBlockEvent`
+  mixins, flushed at the end of each sandbox tick) and are written into the client level.
+  Undo/redo/reset rebuild the sandbox from snapshot + edit list (§7). Keys: `K` run/pause
+  (`P`/`O`/`G` are vanilla), `.` step 1, `,` step 10, `[` `]` speed, `R` reset.
+  Self-test (`-Pselftest=quit`) PASS with 42 checks: copy equals the real world, edits/undo/redo,
+  repeater on after exactly 2 gt and off after 2 gt with the lamp 4 gt later (through the real
+  key path), run/pause/speed, piston extends and pushes via mirrored block events, reset,
+  plus all M1 isolation/restore checks.
+  **Still open in M2:** mirroring falling blocks, TNT and items (§5.6); the circuit test kit
+  compared tick-for-tick with a real singleplayer world; 10 enter/exit and sandbox restart
+  cycles for leaks; undo/redo latency (a full rebuild takes 0.3–0.7 s, the first load 2–3 s).
 - Then: region copy into the sandbox, re-settle, `ChangeCollector`, mirror, block events
   (pistons), play/pause/step/speed, reset, falling blocks/TNT/items mirror.
 - *Done when*: a test kit of circuits (§17) behaves the same in the sandbox as in a real

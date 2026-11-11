@@ -7,11 +7,10 @@ you. Fly a free camera, place and break any block, and run the circuit with exac
 redstone (pause, step, speed control). The server never sees it. When you leave, the design
 becomes a ghost overlay with a bill of materials, or a `.litematic` file for Litematica.
 
-**Status:** in development. Milestone M1 done: Vire Mode with a free camera, virtual
-place/break/undo in the world you see, and full isolation from the server. Redstone simulation
-comes in M2. See [PLAN.md](PLAN.md).
+**Status:** in development. M1 (Vire Mode, free camera, isolation) and the core of M2 (a private
+sandbox server with exact vanilla redstone, pause/step/speed) are done. See [PLAN.md](PLAN.md).
 
-### Vire Mode (M1)
+### Vire Mode
 
 | Key | Action |
 |---|---|
@@ -20,9 +19,17 @@ comes in M2. See [PLAN.md](PLAN.md).
 | Right / left click | Place / break (hold to repeat) |
 | Middle click | Pick block into the virtual hotbar |
 | `E` | Block palette (click = selected slot, hover + 1–9 = that slot) |
-| Ctrl+Z / Ctrl+Y | Undo / redo |
+| Ctrl+Z / Ctrl+Y | Undo / redo (rebuilds the circuit, paused) |
+| `K` | Run / pause the circuit (starts paused) |
+| `.` / `,` | Step 1 / 10 game ticks |
+| `[` / `]` | Slower / faster (1–100 TPS) |
+| `R` | Reset the circuit to your design |
 
-Commands: `/vire`, `/vire size <16..64>`, `/vire status`.
+Commands: `/vire`, `/vire size <16..64>`, `/vire status`, `/vire spike` (sandbox self-check).
+
+The simulation runs in a small private Minecraft server inside your client. It starts in the
+background when you join a world (about 10 s, ~30 MB) so V is instant; turn `keepWarm` off in
+`config/vire/config.json` to start it only when needed.
 
 Your body stays in the real world while you are in Vire Mode. Taking damage, dying, being
 moved by the server or changing dimension ends Vire Mode. Some servers ban freecam-style mods;

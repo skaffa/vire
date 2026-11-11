@@ -20,6 +20,11 @@ public record Box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 		return new Box(x - lo, minY, z - lo, x + hi, maxY, z + hi);
 	}
 
+	/** This box grown by {@code n} blocks on every side. */
+	public Box expand(int n) {
+		return new Box(minX - n, minY - n, minZ - n, maxX + n, maxY + n, maxZ + n);
+	}
+
 	public boolean contains(int x, int y, int z) {
 		return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
 	}

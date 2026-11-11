@@ -1,6 +1,12 @@
 {
 	"key.category.vire.main": "Vire",
 	"key.vire.toggle": "Toggle Vire Mode",
+	"key.vire.pause": "Pause / run circuit",
+	"key.vire.step": "Step 1 game tick",
+	"key.vire.step_many": "Step 10 game ticks",
+	"key.vire.slower": "Slower (tick rate)",
+	"key.vire.faster": "Faster (tick rate)",
+	"key.vire.reset": "Reset circuit",
 	"vire.message.loaded": "Vire %s loaded. Config: %s",
 	"vire.message.not_ready": "Vire Mode is not built yet (milestone M1)."
 }

@@ -8,7 +8,8 @@ public final class VireConfig {
 	public int regionSize = 32;
 	public int reach = 64;
 	public double cameraSpeed = 1.0;
-	public boolean keepWarm = false;
+	/** Start the sandbox server when joining a world and keep it running while connected (boot takes ~10 s). */
+	public boolean keepWarm = true;
 	public int randomTickSpeed = 3;
 	public boolean exitOnDamage = true;
 	public int labelRange = 24;
