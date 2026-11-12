@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1+26.3
+
+- **Settings screen** in Mod Menu and with `/vire config`: region size, camera speed, reach, leave
+  when hurt, keep sandbox warm, random tick speed, overlays, ghost range and Litematica placement,
+  each with a tooltip. No more editing `config.json` by hand.
+
 ## 0.2.0+26.3
 
 - **Use blocks in Vire Mode**: right click flips levers, presses buttons, opens doors, trapdoors and

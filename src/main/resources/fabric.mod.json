@@ -19,6 +19,9 @@
 	"entrypoints": {
 		"client": [
 			"dev.vire.client.VireClient"
+		],
+		"modmenu": [
+			"dev.vire.client.ModMenuIntegration"
 		]
 	},
 	"mixins": [

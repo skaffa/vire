@@ -91,13 +91,15 @@ A design shows only on the server and in the dimension where you made it.
 | `/vire bom` | Materials for the ghost, in chat |
 | `/vire export <name>` | Export a saved design as `.litematic` |
 | `/vire discard` | Forget the saved session of this world (the next V starts from the real world) |
+| `/vire config` | Settings (also in Mod Menu) |
 | `/vire help` | Keys and commands in chat |
 | `/vire status` | Sandbox state, tick, memory |
 
 ## Good to know
 
 - The private server starts in the background when you join a world (about 10 s, ~30 MB), so V is
-  instant. Turn `keepWarm` off in `config/vire/config.json` to start it only when you press V.
+  instant. Turn off "Keep sandbox warm" in the settings (Mod Menu or `/vire config`) to start it only
+  when you press V.
 - The copy only knows what your client knows: container contents you have not opened and some block
   entity data are not there.
 - The region is a 32-block cube around you by default (16–64 with `/vire size`).

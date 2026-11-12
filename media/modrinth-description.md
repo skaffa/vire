@@ -37,8 +37,10 @@ When you leave Vire Mode, name your design and:
 
 - **Your body stays in the real world** while you are in Vire Mode. Taking damage, dying, being moved by the server or changing dimension ends Vire Mode (your design is autosaved). Enter only where you are safe.
 - Some servers do not allow freecam-style mods. Vire does not hide itself; check the rules.
-- The private server starts in the background when you join (about 10 s, ~30 MB), so V is instant. Turn `keepWarm` off in `config/vire/config.json` to start it only when needed.
+- The private server starts in the background when you join (about 10 s, ~30 MB), so V is instant. Turn off "Keep sandbox warm" in the settings to start it only when needed.
 - The copy only knows what your client knows: unopened container contents are not there.
-- All files live in `config/vire/`.
+- **Settings** (region size, camera speed, reach, overlays, ghost range and more) are in Mod Menu, or open them with `/vire config`.
+- Commands you type in Vire Mode go to the real server: `/kill` still kills your real body.
+- Vire's files live in `config/vire/`; `.litematic` exports go to `schematics/vire/`. `/vire help` lists every key and command.
 
-Requires Fabric API. Litematica is optional.
+Requires Fabric API. Litematica and Mod Menu are optional.

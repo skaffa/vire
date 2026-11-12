@@ -209,6 +209,11 @@ public final class VireClient implements ClientModInitializer {
 							}
 							return 1;
 						}))
+						.then(ClientCommands.literal("config").executes(ctx -> {
+							Minecraft mc = Minecraft.getInstance();
+							mc.execute(() -> mc.gui.setScreen(new ConfigScreen(null))); // after the chat screen closed
+							return 1;
+						}))
 						.then(ClientCommands.literal("help").executes(ctx -> {
 							for (String line : help()) {
 								ctx.getSource().sendFeedback(Component.literal(line));
@@ -391,7 +396,7 @@ public final class VireClient implements ClientModInitializer {
 				"  §f" + keyName(markInKey) + " " + keyName(markOutKey) + "§7 mark delay input/output  §f" + keyName(arrowsKey) + "§7 arrows  §f"
 						+ keyName(helpKey) + "§7 keys panel",
 				"§bLeaving keeps your session: V in the same region continues it. Then keep the design as ghost, save, export or discard.",
-				"§bCommands:§7 /vire size <16..64>, /vire ghost <name>|off, /vire designs, /vire bom, /vire export <name>, /vire discard, /vire status");
+				"§bCommands:§7 /vire size <16..64>, /vire ghost <name>|off, /vire designs, /vire bom, /vire export <name>, /vire discard, /vire config (settings), /vire status");
 	}
 
 	public static KeyMapping arrowsKey() {

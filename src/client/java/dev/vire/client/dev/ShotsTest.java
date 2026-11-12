@@ -111,6 +111,9 @@ final class ShotsTest {
 			mc.player.connection.sendCommand("tp @s ~-1 ~ ~3 174 20");
 		});
 		step(40, "shot 3", mc -> shot(mc, "gallery-3-ghost.png"));
+		step(5, "settings", mc -> mc.gui.setScreen(new dev.vire.client.ConfigScreen(null)));
+		step(20, "shot 4", mc -> shot(mc, "gallery-4-settings.png"));
+		step(5, "close settings", mc -> mc.gui.setScreen(null));
 		step(5, "clean up", mc -> {
 			GhostLayer.show(null);
 			try {
