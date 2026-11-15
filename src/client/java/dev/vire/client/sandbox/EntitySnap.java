@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * One sandbox entity that redstone builds care about (PLAN.md §5.6): falling blocks, primed TNT and
+ * One sandbox entity that redstone builds care about: falling blocks, primed TNT and
  * items. Taken on the sandbox thread, so it holds copies only.
  */
 public record EntitySnap(int id, EntityType<?> type, Vec3 pos, Vec3 motion, float yRot, float xRot, int blockId, ItemStack item, int fuse) {

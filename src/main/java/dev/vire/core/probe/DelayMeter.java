@@ -1,7 +1,7 @@
 package dev.vire.core.probe;
 
 /**
- * Delay tracker and frequency meter (PLAN.md §8). Fed with the signal level (0–15) of a marked input
+ * Delay tracker and frequency meter. Fed with the signal level (0–15) of a marked input
  * and a marked output after every sandbox tick, with the sandbox tick counter. Because both ticks come
  * from the same counter, the numbers are exact.
  *

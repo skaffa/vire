@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Normalization table (PLAN.md §7): properties the simulation or the neighbors set are not part of the
+ * Normalization table: properties the simulation or the neighbors set are not part of the
  * design. A powered dust, a lit lamp or an extended piston is built as the plain block; fence and wire
  * connections follow from the neighbors once everything is placed.
  */

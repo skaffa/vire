@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The active design shown in the real world after Vire Mode (PLAN.md §9). Every client tick it
+ * The active design shown in the real world after Vire Mode. Every client tick it
  * compares each design position with the real block (normalized, §7): built positions disappear,
  * missing blocks show as see-through blocks, a block in the way gets a red box, the right block in the
  * wrong state a yellow box with what is expected. When all positions match, a toast says so and the

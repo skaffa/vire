@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Records virtual writes (PLAN.md §6.1) and holds back real block updates inside the region while
+ * Records virtual writes and holds back real block updates inside the region while
  * Vire Mode is on (§6.2). Both block-update packets end in {@code setServerVerifiedBlockState}.
  */
 @Mixin(ClientLevel.class)

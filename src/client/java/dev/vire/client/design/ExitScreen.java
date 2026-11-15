@@ -11,7 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Shown after leaving Vire Mode with a design (PLAN.md §12): name it, then keep it as a ghost to build
+ * Shown after leaving Vire Mode with a design: name it, then keep it as a ghost to build
  * from, only save it, or discard it. Closing with Escape saves it as {@code _autosave}, so nothing is
  * lost by accident.
  */

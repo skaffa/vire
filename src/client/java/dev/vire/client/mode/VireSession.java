@@ -47,7 +47,7 @@ public final class VireSession {
 	public long sandboxTick;
 	/** Comparator outputs in the sandbox (key → 0..15); the client's own comparator block entities do not know them. */
 	public Map<Long, Integer> comparators = Map.of();
-	/** Delay tracker marks (keys) or null, and the meter fed after every mirror batch (PLAN.md §8). */
+	/** Delay tracker marks (keys) or null, and the meter fed after every mirror batch. */
 	public Long markIn;
 	public Long markOut;
 	public final dev.vire.core.probe.DelayMeter meter = new dev.vire.core.probe.DelayMeter();

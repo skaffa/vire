@@ -43,7 +43,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * M5 acceptance (PLAN.md §16), run with {@code -Plitematica -Pselftest=litematic}: design six rotated
+ * M5 acceptance, run with {@code -Plitematica -Pselftest=litematic}: design six rotated
  * parts in Vire Mode, export them, check that Litematica 0.29.1 reads every state back exactly and
  * placed the schematic at the design's real corner, then let Litematica Printer 3.2.x try to build it
  * in survival on the test server. The printer result is logged, not checked: 3.2.3 on 26.3 places the
@@ -134,7 +134,7 @@ final class LitematicSelfTest {
 			printer("ROTATE", true);
 			printer("INTERACT_BLOCKS", true);
 		});
-		// Printer 3.2.3 on 26.3 builds only part of this (PLAN.md §16 M5): logged, not checked.
+		// Printer 3.2.3 on 26.3 builds only part of this: logged, not checked.
 		step(600, "printer result", mc -> {
 			printer("PRINT_MODE", false);
 			for (Map.Entry<BlockPos, BlockState> e : parts.entrySet()) {

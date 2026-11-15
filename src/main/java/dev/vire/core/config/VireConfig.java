@@ -1,7 +1,7 @@
 package dev.vire.core.config;
 
 /**
- * User settings, stored as {@code config/vire/config.json}. See PLAN.md §13.
+ * User settings, stored as {@code config/vire/config.json}.
  * Plain fields so Gson can (de)serialize them; call {@link #clamp()} after loading.
  */
 public final class VireConfig {

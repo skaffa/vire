@@ -26,7 +26,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Vire Mode state machine (PLAN.md §3): OFF → STARTING (sandbox server booting) → ACTIVE → OFF.
+ * Vire Mode state machine: OFF → STARTING (sandbox server booting) → ACTIVE → OFF.
  * The sandbox normally starts when the player joins a world ({@code keepWarm}), so STARTING is
  * usually skipped.
  */
@@ -127,7 +127,7 @@ public final class VireMode {
 		return true;
 	}
 
-	/** Copies the real region plus a 1-block border from the client level (PLAN.md §5.4). */
+	/** Copies the real region plus a 1-block border from the client level. */
 	private static void snapshot(VireSession s) {
 		Box outer = s.box.expand(1);
 		for (int x = outer.minX(); x <= outer.maxX(); x++) {
@@ -207,7 +207,7 @@ public final class VireMode {
 		if (mc.player != null && mc.getCameraEntity() == s.camera) {
 			mc.setCameraEntity(mc.player);
 		}
-		// the design, taken before restore (PLAN.md §7); null when the edits change nothing
+		// the design, taken before restore; null when the edits change nothing
 		Design design = null;
 		try {
 			design = Designs.capture(mc, s, Designs.defaultName());

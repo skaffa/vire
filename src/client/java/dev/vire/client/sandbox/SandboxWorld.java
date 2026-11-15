@@ -194,7 +194,7 @@ public final class SandboxWorld {
 		}
 		long tCopy = System.nanoTime();
 		// 2. re-settle: every component re-reads its inputs, so power, comparators and pending
-		//    repeater ticks become consistent with what the client could see (PLAN.md §5.5)
+		//    repeater ticks become consistent with what the client could see
 		int settled = 0;
 		for (int x = outer.minX(); x <= outer.maxX(); x++) {
 			for (int y = outer.minY(); y <= outer.maxY(); y++) {

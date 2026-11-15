@@ -69,7 +69,7 @@ public final class VireClient implements ClientModInitializer {
 	private static KeyMapping arrowsKey;
 	private static KeyMapping bomKey;
 	private static KeyMapping helpKey;
-	/** Tick rates the speed keys step through (PLAN.md §5.7). */
+	/** Tick rates the speed keys step through. */
 	private static final float[] RATES = {1, 2, 5, 10, 20, 40, 60, 100};
 
 	@Override

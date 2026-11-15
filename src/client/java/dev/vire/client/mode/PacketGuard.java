@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Layer 2 of input isolation (PLAN.md §4.3): while Vire Mode is on, only an allow-list of harmless
+ * Layer 2 of input isolation: while Vire Mode is on, only an allow-list of harmless
  * packets may leave the client. Anything else is dropped and logged with a stack trace, because it
  * means layer 1 missed a path.
  *

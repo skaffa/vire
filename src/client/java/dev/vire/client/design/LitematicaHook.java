@@ -11,7 +11,7 @@ import net.minecraft.core.BlockPos;
 import java.nio.file.Path;
 
 /**
- * Loads an exported schematic into Litematica and places it at its real position (PLAN.md §10.2),
+ * Loads an exported schematic into Litematica and places it at its real position,
  * checked against Litematica 0.29.1. Only called when Litematica is loaded: nothing else references
  * this class, so Vire runs without Litematica. A placement of the same name is replaced.
  */

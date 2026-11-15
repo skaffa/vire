@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Block picker for the virtual hotbar (PLAN.md §4.2). A plain {@link Screen}, not the creative
+ * Block picker for the virtual hotbar. A plain {@link Screen}, not the creative
  * inventory: it never sends a packet. Click a block to put it in the selected slot; hover a block and
  * press 1–9 to put it in that slot.
  */

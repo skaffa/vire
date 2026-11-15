@@ -1,4 +1,4 @@
-<p align="center"><img src="media/icon-128.png" alt="Vire icon" width="96"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/skaffa/vire/d6ae1443b3abed88d7145e659cbb61e571ef7e08/media/icon-128.png" alt="Vire icon" width="96"></p>
 
 # Vire
 
@@ -10,7 +10,7 @@ pause it, step it one game tick at a time and change its speed. Nothing you do t
 When you leave, your design becomes a see-through ghost to build from, with the materials you still
 need, or a `.litematic` file for Litematica.
 
-![Vire Mode: signal levels, arrows and the delay meter on a repeater chain](media/gallery/1-vire-mode.png)
+![Vire Mode: signal levels, arrows and the delay meter on a repeater chain](https://raw.githubusercontent.com/skaffa/vire/d6ae1443b3abed88d7145e659cbb61e571ef7e08/media/gallery/1-vire-mode.png)
 
 > **Your body stays in the real world.** While you are in Vire Mode your player stands still where you
 > pressed V. Taking damage, dying, being moved by the server or changing dimension ends Vire Mode at
@@ -35,7 +35,7 @@ need, or a `.litematic` file for Litematica.
 - **Litematica export.** Save the design as `.litematic`; with Litematica installed it is loaded and
   placed at its real position at once.
 
-![The ghost of a design with the materials panel](media/gallery/3-ghost.png)
+![The ghost of a design with the materials panel](https://raw.githubusercontent.com/skaffa/vire/d6ae1443b3abed88d7145e659cbb61e571ef7e08/media/gallery/3-ghost.png)
 
 ## Keys
 
@@ -129,7 +129,7 @@ meter), `ghost` (design → ghost → build it by hand in survival), `cycles` (l
 (sandbox boot cost), `shots` (gallery screenshots, add `--width 1600 --height 900`), and with
 `-Plitematica` also `litematic` (export → Litematica; needs the Litematica, MaLiLib and Litematica
 Printer jars from Modrinth in `libs/`). `-Ppacketlog` logs every packet sent while Vire Mode is on.
-See [PLAN.md](PLAN.md) for the design and [CHANGELOG.md](CHANGELOG.md) for changes.
+See [CHANGELOG.md](CHANGELOG.md) for changes.
 
 ## License
 

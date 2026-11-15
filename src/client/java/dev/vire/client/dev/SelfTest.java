@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Dev-only M1 acceptance script (PLAN.md §16, M1). Runs only with {@code -Dvire.selftest=run} (or
+ * Dev-only M1 acceptance script. Runs only with {@code -Dvire.selftest=run} (or
  * {@code =quit} to close the game afterwards), on a test server where the player is op.
  *
  * <p>It drives Vire Mode through the real key paths ({@code KeyMapping.click/set}), so the vanilla
@@ -428,7 +428,7 @@ public final class SelfTest {
 	private static final List<List<Map<String, String>>> REAL = new ArrayList<>();
 	private static boolean markerGold;
 
-	/** Circuit test kit (PLAN.md §17): real server vs sandbox, tick by tick. */
+	/** Circuit test kit: real server vs sandbox, tick by tick. */
 	private static void kitSteps() {
 		step(0, "go near the kit", mc -> {
 			mc.player.connection.sendCommand("tp @s 395 -60 395");
@@ -493,7 +493,7 @@ public final class SelfTest {
 	private static boolean prLast;
 
 	/**
-	 * M3 acceptance (PLAN.md §16): the delay tracker reads the right ticks. Repeater chain 1-3-2 into a
+	 * M3 acceptance: the delay tracker reads the right ticks. Repeater chain 1-3-2 into a
 	 * lamp: on delay = 2+6+4 = 12 gt, off delay = 12 gt + 4 gt lamp turn-off; the test counts its own
 	 * single steps as a second opinion. Observer clock: the meter's period equals the period the test
 	 * reads from the observer state step by step.

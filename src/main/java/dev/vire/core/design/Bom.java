@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Bill of materials rules (PLAN.md §9): how many items one design block needs. The item itself comes
+ * Bill of materials rules: how many items one design block needs. The item itself comes
  * from the client ({@code Block.asItem()}), except where this class names it.
  */
 public final class Bom {

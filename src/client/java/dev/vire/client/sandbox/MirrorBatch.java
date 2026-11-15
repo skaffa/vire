@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * What the sandbox sends to the client after a tick (PLAN.md §6.1): block events (piston starts) in
+ * What the sandbox sends to the client after a tick: block events (piston starts) in
  * order, then the final state of every changed position inside the region, the tracked entities
  * (falling blocks, TNT, items) and the clock status.
  *

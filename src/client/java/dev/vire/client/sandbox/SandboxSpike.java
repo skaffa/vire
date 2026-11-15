@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 /**
- * M2 spike (PLAN.md §16): can Vire run a private server inside the client, and what does it cost?
+ * M2 spike: can Vire run a private server inside the client, and what does it cost?
  * Boots {@link SandboxServer}, builds redstone block → repeater → lamp, checks vanilla timing with
  * pause and single steps, measures boot time, memory and tick rate, then shuts down.
  *

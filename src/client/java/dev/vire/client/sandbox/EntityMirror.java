@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Client copies of the sandbox's falling blocks, TNT and items (PLAN.md §5.6). They live in the client
+ * Client copies of the sandbox's falling blocks, TNT and items. They live in the client
  * level under negative ids, which a real server never uses, and are moved to the sandbox position
  * every tick. Nothing about them is ever sent to the server.
  */

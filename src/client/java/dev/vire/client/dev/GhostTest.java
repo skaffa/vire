@@ -31,7 +31,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 
 /**
- * M4 acceptance (PLAN.md §16): design in Vire Mode, keep it as a ghost, then build it for real in
+ * M4 acceptance: design in Vire Mode, keep it as a ghost, then build it for real in
  * survival on the test server through the real key paths. Checks the BOM against a hand count, the
  * build assist (a repeater placed the wrong way shows "facing: west expected"), that every ghost block
  * clears and that the design completes.

@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * The real body does not move in Vire Mode (PLAN.md §3.2). Without this, removing a virtual block
+ * The real body does not move in Vire Mode. Without this, removing a virtual block
  * under it would let it fall client-side, and the server would see a wrong position on exit.
  */
 @Mixin(LocalPlayer.class)

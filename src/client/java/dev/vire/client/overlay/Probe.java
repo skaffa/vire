@@ -11,7 +11,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 /**
- * Delay tracker and frequency meter (PLAN.md §8): the player marks one block as input (N) and one as
+ * Delay tracker and frequency meter: the player marks one block as input (N) and one as
  * output (M); after every mirror batch the signal of both goes into the session's {@link DelayMeter}
  * with the sandbox tick of that batch. The sandbox sends a batch for every tick in which something
  * changed, so the ticks are exact.

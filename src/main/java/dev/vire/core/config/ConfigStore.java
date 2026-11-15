@@ -19,7 +19,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * Loads and saves {@link VireConfig} inside the mod's own folder ({@code config/vire/}).
  * Minecraft-free so it can be unit tested. A file that cannot be parsed is kept as
- * {@code config.json.broken-<time>} and defaults are used (PLAN.md §13).
+ * {@code config.json.broken-<time>} and defaults are used.
  */
 public final class ConfigStore {
 	public static final String FILE_NAME = "config.json";

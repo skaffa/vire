@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Client side of virtual editing (PLAN.md §6, §7).
+ * Client side of virtual editing.
  *
  * <p>User edits go to the sandbox server; the sandbox simulates and its changes come back as
  * {@link MirrorBatch}es, which are written into the client level here. While a batch is written,
@@ -318,7 +318,7 @@ public final class VireWorld {
 		VireMode.hint(mc, "Redo, circuit reset");
 	}
 
-	/** Reset button: rebuild the sandbox from the snapshot plus all edits, paused (PLAN.md §7). */
+	/** Reset button: rebuild the sandbox from the snapshot plus all edits, paused. */
 	public static void reset(Minecraft mc) {
 		VireSession s = VireMode.session();
 		if (s != null) {

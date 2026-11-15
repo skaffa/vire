@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Layer 2 (PLAN.md §4.3): every outgoing packet passes {@link PacketGuard} while Vire Mode is on. */
+/** Layer 2: every outgoing packet passes {@link PacketGuard} while Vire Mode is on. */
 @Mixin(Connection.class)
 abstract class ConnectionMixin {
 	@Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;Z)V",

@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Detached camera for Vire Mode. Never added to the level, so it is not rendered, not ticked by the
  * level and never synced. It flies through blocks; movement is read straight from the movement keys,
- * because the player's own input is blanked while Vire Mode is on (PLAN.md §3.2).
+ * because the player's own input is blanked while Vire Mode is on.
  */
 public final class FreeCamera extends Entity {
 	private static final double BASE_SPEED = 0.6;

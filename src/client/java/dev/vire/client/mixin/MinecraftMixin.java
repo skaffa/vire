@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Layer 1 (PLAN.md §4.1): vanilla's attack/use/pick paths never run in Vire Mode. */
+/** Layer 1: vanilla's attack/use/pick paths never run in Vire Mode. */
 @Mixin(Minecraft.class)
 abstract class MinecraftMixin {
 	@Inject(method = "handleKeybinds", at = @At("HEAD"))

@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Signal labels, flow arrows and the delay tracker marks inside the Vire region (PLAN.md §8), submitted
+ * Signal labels, flow arrows and the delay tracker marks inside the Vire region, submitted
  * as vanilla gizmos every client tick. The scan and label layout are adapted from Gauge's overlay
  * (copied, not a dependency): only chunk sections whose palette may hold a component are read, only
  * blocks in front of the camera and within {@code labelRange}, nearest first.

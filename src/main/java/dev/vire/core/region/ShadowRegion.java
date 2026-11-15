@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.function.LongFunction;
 
 /**
- * Keeps track of the real world while the client level shows virtual blocks (PLAN.md §6).
+ * Keeps track of the real world while the client level shows virtual blocks.
  *
  * <p>Invariant: for every position, the client level shows the real state <em>unless</em> the
  * position is in {@link #real}; then {@code real} holds the real state. So restoring on exit only has

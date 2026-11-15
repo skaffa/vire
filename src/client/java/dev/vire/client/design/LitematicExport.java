@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Exports a design as {@code schematics/vire/<name>.litematic} (PLAN.md §10.1), cut to the bounding box
+ * Exports a design as {@code schematics/vire/<name>.litematic}, cut to the bounding box
  * of the design. Design positions get the design state (removals = air). The other positions of the
  * box get the block the world shows now, when the client has it and the design was made here, so
  * Litematica sees them as already correct and its printer leaves them alone; otherwise air.

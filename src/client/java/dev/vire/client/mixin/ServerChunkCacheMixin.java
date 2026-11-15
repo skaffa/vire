@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Every block change a server would send to players passes here; for the sandbox server it feeds
- * the mirror (PLAN.md §6.1). Other servers (singleplayer) only pay an {@code instanceof}.
+ * the mirror. Other servers (singleplayer) only pay an {@code instanceof}.
  */
 @Mixin(ServerChunkCache.class)
 abstract class ServerChunkCacheMixin {

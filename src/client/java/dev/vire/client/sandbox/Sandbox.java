@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 /**
- * Client-side handle on the sandbox server (PLAN.md §5.3): start, stop, and the two queues between
+ * Client-side handle on the sandbox server: start, stop, and the two queues between
  * the client thread and the sandbox thread. Everything that touches the sandbox world runs on the
  * sandbox thread through {@link #run}; results come back as {@link MirrorBatch}es in {@link #OUT}.
  */
@@ -134,7 +134,7 @@ public final class Sandbox {
 
 	/**
 	 * (Re)builds the region in the sandbox from the snapshot and replays the edits, then re-settles and
-	 * pauses (PLAN.md §5.4–5.5, §7 reset). Returns the new generation.
+	 * pauses. Returns the new generation.
 	 */
 	public static int load(Box box, Map<Long, BlockState> snapshot, Map<Long, CompoundTag> blockEntities, List<SandboxWorld.Edit> edits) {
 		int gen = ++generation;

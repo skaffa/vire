@@ -16,7 +16,7 @@ loom {
 		client {
 			// Keep the dev game small enough for 8 GB machines.
 			vmArgs "-Xms256M", "-Xmx2G"
-			// ./gradlew runClient -Ppacketlog: log every outgoing packet class while Vire Mode is active (PLAN.md §4.3)
+			// ./gradlew runClient -Ppacketlog: log every outgoing packet class while Vire Mode is active
 			if (project.hasProperty("packetlog")) {
 				property "vire.packetlog", "true"
 			}
@@ -59,7 +59,7 @@ dependencies {
 	clientCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 	localRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-	// Optional: Litematica auto-load (PLAN.md §10.2). Jars from Modrinth in libs/ (not in git, not bundled):
+	// Optional: Litematica auto-load. Jars from Modrinth in libs/ (not in git, not bundled):
 	// litematica-fabric-26.3-0.29.1, malilib-fabric-26.3-0.30.2, litematica-printer-26.3-3.2.3.
 	// Compiled against when present; in the dev client only with -Plitematica.
 	def litematicaJars = fileTree(dir: "libs", include: ["litematica-fabric-*.jar", "malilib-fabric-*.jar"])

@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * Writes a one-region {@code .litematic} (PLAN.md §10.1): gzipped NBT with {@code Version},
+ * Writes a one-region {@code .litematic}: gzipped NBT with {@code Version},
  * {@code SubVersion}, {@code MinecraftDataVersion}, {@code Metadata} and {@code Regions/<name>}
  * holding {@code Position}, {@code Size}, {@code BlockStatePalette}, {@code BlockStates} (packed by
  * {@link BitPacker}, index = (y × sizeZ + z) × sizeX + x) and empty entity / tick lists. Palette entry 0

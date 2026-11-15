@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A saved design (PLAN.md §7, §9): the blocks to build, in world coordinates of the world it was made
+ * A saved design: the blocks to build, in world coordinates of the world it was made
  * in. Only positions where the design differs from the real world when it was made are stored.
  *
  * @param world   where it belongs (server address or singleplayer save name, plus dimension)
@@ -35,7 +35,7 @@ public record Design(String name, String world, long created, List<Entry> entrie
 
 	/**
 	 * Normalized diff of the design against the real world: positions whose design state does not
-	 * match the real state (PLAN.md §7). {@code real} and {@code design} map position keys to states.
+	 * match the real state. {@code real} and {@code design} map position keys to states.
 	 */
 	public static List<Entry> diff(Map<Long, StateRef> real, Map<Long, StateRef> design) {
 		List<Entry> out = new ArrayList<>();

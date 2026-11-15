@@ -71,7 +71,7 @@ import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 
 /**
- * Vire's private in-process server (PLAN.md §5): one void overworld, no network, no players. Built
+ * Vire's private in-process server: one void overworld, no network, no players. Built
  * like vanilla's {@code GameTestServer}, but it ticks at the normal rate and never exits the JVM.
  */
 public final class SandboxServer extends MinecraftServer {

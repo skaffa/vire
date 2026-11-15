@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Circuit test kit (PLAN.md §17): the same {@code /setblock} commands run on the real test server and
+ * Circuit test kit: the same {@code /setblock} commands run on the real test server and
  * in the sandbox, both frozen and stepped one game tick at a time with {@code /tick step 1}. The block
  * states of each circuit are recorded after every tick and must be identical. Using the same
  * commands on both sides makes the placement semantics equal, so only the simulation is compared.

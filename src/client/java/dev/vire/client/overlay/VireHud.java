@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Vire Mode HUD (PLAN.md §12): a frame, a values panel (top left), a keys panel (right, H hides it),
+ * Vire Mode HUD: a frame, a values panel (top left), a keys panel (right, H hides it),
  * the Vire crosshair and the virtual hotbar in place of the real one.
  */
 public final class VireHud {

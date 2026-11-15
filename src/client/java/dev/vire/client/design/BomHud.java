@@ -14,7 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Map;
 
 /**
- * Bill of materials panel (PLAN.md §9), toggled with {@code B}: one line per item still needed for the
+ * Bill of materials panel, toggled with {@code B}: one line per item still needed for the
  * ghost, with what the inventory holds. Green = enough, red = missing. Inventory only, no chests.
  */
 public final class BomHud {

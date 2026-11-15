@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Designs as {@code config/vire/designs/<name>.json} (PLAN.md §9). */
+/** Designs as {@code config/vire/designs/<name>.json}. */
 public final class DesignStore {
 	public static final String AUTOSAVE = "_autosave";
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();

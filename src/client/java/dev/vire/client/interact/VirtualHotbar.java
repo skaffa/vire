@@ -4,7 +4,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * Vire Mode's own 9 slots (PLAN.md §4.2). The survival inventory is never touched, so no
+ * Vire Mode's own 9 slots. The survival inventory is never touched, so no
  * carried-item or creative-slot packet is ever needed.
  */
 public final class VirtualHotbar {

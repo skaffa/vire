@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 
 /**
- * Layer 1 of input isolation (PLAN.md §4.1). Runs at the start of {@code Minecraft.handleKeybinds}
+ * Layer 1 of input isolation. Runs at the start of {@code Minecraft.handleKeybinds}
  * while Vire Mode is on and consumes every key click that would make vanilla act on the real world.
  * Vanilla then finds nothing to do for those keys; held keys are covered by the cancelled
  * {@code startUseItem}/{@code continueAttack} in {@code MinecraftMixin}.
